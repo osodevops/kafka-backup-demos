@@ -5,8 +5,11 @@ A collection of runnable demos for [OSO Kafka Backup](https://github.com/osodevo
 ## Quick Start
 
 ```bash
-# Start the demo environment
+# Start the demo environment (default: Kafka 3.7.1)
 docker compose up -d
+
+# Or start with a specific Kafka version
+KAFKA_VERSION=4.0.0 docker compose up -d
 
 # Wait for services to be ready (~15 seconds)
 docker compose logs kafka-setup
@@ -29,12 +32,22 @@ The `docker-compose.yml` provides:
 
 | Service | Description | Port |
 |---------|-------------|------|
-| kafka-broker-1 | Apache Kafka 3.7.1 (KRaft mode) | 9092 |
+| kafka-broker-1 | Apache Kafka (KRaft mode) | 9092 |
 | minio | S3-compatible object storage | 9000 (API), 9001 (Console) |
 | kafka-cli | Kafka CLI tools container | - |
 | kafka-backup | OSO Kafka Backup CLI | - |
 
-**Pre-configured topics:** `orders`, `payments`, `events`, `orders_enriched`, `large_messages`
+### Supported Kafka Versions
+
+| Version | Image | Notes |
+|---------|-------|-------|
+| 3.7.1 | `apache/kafka:3.7.1` | Default, LTS |
+| 3.8.0 | `apache/kafka:3.8.0` | |
+| 3.9.0 | `apache/kafka:3.9.0` | |
+| 4.0.0 | `apache/kafka:4.0.0` | ZooKeeper removed |
+| 4.1.0 | `apache/kafka:4.1.0` | Latest stable |
+
+**Pre-configured topics:** `orders`, `payments`, `events`, `orders_enriched`, `large_messages`, `benchmark-data`
 
 **MinIO Console:** http://localhost:9001 (minioadmin/minioadmin)
 
@@ -70,6 +83,12 @@ The `docker-compose.yml` provides:
 |------|------|---------|------------|
 | [Backup & Restore](python/backup-restore-py/instructions.md) | `python/backup-restore-py/` | Language-agnostic validation | Beginner |
 
+### Benchmarks
+
+| Demo | Path | Feature | Difficulty |
+|------|------|---------|------------|
+| [Performance Benchmarks](benchmarks/instructions.md) | `benchmarks/` | Throughput, compression, latency testing | Intermediate |
+
 ## Running kafka-backup Commands
 
 ```bash
@@ -100,6 +119,29 @@ docker compose down
 # Remove all data (including MinIO storage)
 docker compose down -v
 ```
+
+## Multi-Version Testing
+
+Test kafka-backup compatibility across multiple Kafka versions:
+
+```bash
+# Test all supported versions
+./test-versions.sh
+
+# Test specific versions
+./test-versions.sh 4.0.0 4.1.0
+
+# Run quick smoke test (default)
+./test-versions.sh --quick
+
+# Run full test suite
+./test-versions.sh --full
+
+# Run benchmarks per version
+./test-versions.sh --benchmark 4.0.0
+```
+
+Results are saved to `test-results/` as markdown reports.
 
 ## Documentation
 

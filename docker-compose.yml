@@ -2,9 +2,12 @@
 # Based on: https://github.com/osodevops/kafka-backup/blob/main/docker-compose.yml
 #
 # Usage:
-#   docker compose up -d                    # Start all services
+#   docker compose up -d                    # Start all services (default Kafka 3.7.1)
+#   KAFKA_VERSION=4.0.0 docker compose up -d  # Start with specific Kafka version
 #   docker compose --profile tools run --rm kafka-backup <command>
 #   docker compose down                     # Stop all services
+#
+# Supported Kafka versions: 3.7.1, 3.8.0, 3.9.0, 4.0.0, 4.1.0, 4.1.1
 
 networks:
   kafka-net:
@@ -16,7 +19,7 @@ volumes:
 services:
   # Apache Kafka Broker (KRaft mode - no Zookeeper)
   kafka-broker-1:
-    image: apache/kafka:3.7.1
+    image: apache/kafka:${KAFKA_VERSION:-3.7.1}
     hostname: kafka-broker-1
     container_name: kafka-broker-1
     restart: always
@@ -46,7 +49,7 @@ services:
 
   # Topic setup helper - creates all demo topics
   kafka-setup:
-    image: bitnami/kafka:3.7.1
+    image: apache/kafka:${KAFKA_VERSION:-3.7.1}
     hostname: kafka-setup
     networks:
       - kafka-net
@@ -57,12 +60,13 @@ services:
       bash -c 'echo "Waiting for Kafka to be ready..." &&
       sleep 10 &&
       echo "Creating demo topics..." &&
-      kafka-topics.sh --create --if-not-exists --bootstrap-server kafka-broker-1:9092 --partitions 3 --replication-factor 1 --topic test-topic &&
-      kafka-topics.sh --create --if-not-exists --bootstrap-server kafka-broker-1:9092 --partitions 3 --replication-factor 1 --topic orders &&
-      kafka-topics.sh --create --if-not-exists --bootstrap-server kafka-broker-1:9092 --partitions 3 --replication-factor 1 --topic payments &&
-      kafka-topics.sh --create --if-not-exists --bootstrap-server kafka-broker-1:9092 --partitions 3 --replication-factor 1 --topic events &&
-      kafka-topics.sh --create --if-not-exists --bootstrap-server kafka-broker-1:9092 --partitions 3 --replication-factor 1 --topic orders_enriched &&
-      kafka-topics.sh --create --if-not-exists --bootstrap-server kafka-broker-1:9092 --partitions 1 --replication-factor 1 --topic large_messages --config max.message.bytes=15728640 &&
+      /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server kafka-broker-1:9092 --partitions 3 --replication-factor 1 --topic test-topic &&
+      /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server kafka-broker-1:9092 --partitions 3 --replication-factor 1 --topic orders &&
+      /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server kafka-broker-1:9092 --partitions 3 --replication-factor 1 --topic payments &&
+      /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server kafka-broker-1:9092 --partitions 3 --replication-factor 1 --topic events &&
+      /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server kafka-broker-1:9092 --partitions 3 --replication-factor 1 --topic orders_enriched &&
+      /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server kafka-broker-1:9092 --partitions 1 --replication-factor 1 --topic large_messages --config max.message.bytes=15728640 &&
+      /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server kafka-broker-1:9092 --partitions 3 --replication-factor 1 --topic benchmark-data &&
       echo "All demo topics created successfully"'
 
   # MinIO (S3-compatible storage)
@@ -100,7 +104,7 @@ services:
 
   # Kafka CLI tools (for running kafka-console-producer, kafka-console-consumer, etc.)
   kafka-cli:
-    image: bitnami/kafka:3.7.1
+    image: apache/kafka:${KAFKA_VERSION:-3.7.1}
     hostname: kafka-cli
     networks:
       - kafka-net
@@ -108,6 +112,7 @@ services:
       - kafka-broker-1
     environment:
       KAFKA_BROKER: kafka-broker-1:9092
+      PATH: /opt/kafka/bin:$$PATH
     volumes:
       - ./data:/data
       - ./config:/config
