@@ -1,0 +1,2 @@
+# Python dependencies for kafka-backup demo
+confluent-kafka==2.3.0

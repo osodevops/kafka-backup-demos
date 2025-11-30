@@ -1,0 +1,24 @@
+[
+  {
+    "id": "large-msg-sample-1",
+    "timestamp": "2025-01-15T10:00:00Z",
+    "size_mb": 0.001,
+    "type": "large-payload-test",
+    "metadata": {
+      "generated_by": "kafka-backup-demos",
+      "purpose": "Sample file - use generate-large-messages.sh for actual large payloads"
+    },
+    "payload": "This is a sample placeholder. For actual large message testing, run: ./data/generate-large-messages.sh 1 5"
+  },
+  {
+    "id": "large-msg-sample-2",
+    "timestamp": "2025-01-15T10:01:00Z",
+    "size_mb": 0.001,
+    "type": "large-payload-test",
+    "metadata": {
+      "generated_by": "kafka-backup-demos",
+      "purpose": "Sample file - demonstrates JSON structure"
+    },
+    "payload": "Sample payload data that would normally be much larger (1-10MB)"
+  }
+]

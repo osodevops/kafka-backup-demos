@@ -1,0 +1,32 @@
+# PITR Restore Configuration
+# Used by: cli/pitr-rollback-e2e demo
+# Note: time_window_end should be set dynamically at runtime
+
+mode: restore
+backup_id: "pitr-backup"
+
+target:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - payments
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: pitr-demo
+  endpoint: http://minio:9000
+  path_style: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+restore:
+  dry_run: false
+  include_original_offset_header: true
+  consumer_group_strategy: header-based
+  consumer_groups:
+    - payments-processor
+  reset_consumer_offsets: true
+  max_concurrent_partitions: 3

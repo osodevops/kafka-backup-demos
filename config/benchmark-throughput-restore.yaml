@@ -1,0 +1,23 @@
+mode: restore
+backup_id: "benchmark-throughput"
+
+target:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    mapping:
+      benchmark-data: benchmark-data
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: benchmark-throughput
+  endpoint: http://minio:9000
+  path_style: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+restore:
+  max_concurrent_partitions: 3
+  batch_size: 10000

@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: backup-restore-demo
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    streams:
+      application-id: events-aggregator
+      properties:
+        default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+        default.value.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+        commit.interval.ms: 1000
+        state.dir: /tmp/kafka-streams-spring-demo
+
+    consumer:
+      auto-offset-reset: earliest
+      enable-auto-commit: true
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+# Application settings
+app:
+  topics:
+    input: events
+    output: events_agg
+  store-name: events-count-store
+
+# Actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.osodevops.demo: INFO
+    org.apache.kafka: WARN

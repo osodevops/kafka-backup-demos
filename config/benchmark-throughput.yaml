@@ -1,0 +1,27 @@
+mode: backup
+backup_id: "benchmark-throughput"
+
+source:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - benchmark-data
+  consumer_group_id: benchmark-backup-consumer
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: benchmark-throughput
+  endpoint: http://minio:9000
+  path_style: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+backup:
+  compression: zstd
+  segment_max_records: 50000
+  segment_max_bytes: 134217728
+  max_concurrent_partitions: 3
+  checkpoint_interval_ms: 5000

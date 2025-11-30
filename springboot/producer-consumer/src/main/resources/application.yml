@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: producer-consumer-pitr-demo
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    consumer:
+      group-id: demo-consumer
+      auto-offset-reset: earliest
+      enable-auto-commit: true
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+# Application settings
+app:
+  topic: orders
+  producer:
+    enabled: ${PRODUCER_ENABLED:true}
+    rate-ms: 1000  # Produce every 1 second
+  consumer:
+    enabled: ${CONSUMER_ENABLED:true}
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+server:
+  port: ${SERVER_PORT:8080}
+
+logging:
+  level:
+    com.osodevops.demo: INFO
+    org.apache.kafka: WARN

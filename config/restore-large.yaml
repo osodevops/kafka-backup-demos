@@ -1,0 +1,27 @@
+# Large Messages Restore Configuration
+# Used by: cli/large-messages demo
+
+mode: restore
+backup_id: "large-messages-backup"
+
+target:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - large_messages
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: large-demo
+  endpoint: http://minio:9000
+  path_style: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+restore:
+  dry_run: false
+  include_original_offset_header: true
+  max_concurrent_partitions: 1
