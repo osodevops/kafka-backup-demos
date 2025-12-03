@@ -1,0 +1,30 @@
+# Live Producer Backup Configuration
+# Used by: cli/live-producer-backup demo
+# Demonstrates: Backup while producers are actively running
+
+mode: backup
+backup_id: "live-producer-backup"
+
+source:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - live-test
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: live-producer-demo
+  endpoint: http://minio:9000
+  path_style: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+backup:
+  compression: zstd
+  continuous: false
+  segment_max_records: 10000
+  segment_max_bytes: 10485760  # 10MB
+  max_concurrent_partitions: 3

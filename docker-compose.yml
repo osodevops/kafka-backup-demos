@@ -118,7 +118,8 @@ services:
       - ./config:/config
     profiles:
       - tools
-    entrypoint: ["tail", "-f", "/dev/null"]
+    entrypoint: []
+    command: ["bash"]
 
   # Kafka Backup CLI
   # Option 1: Use published image (when available)
