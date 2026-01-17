@@ -47,6 +47,8 @@ A pre-configured dashboard is automatically provisioned with panels for:
 - Storage Write Latency (p50/p99)
 - Storage I/O throughput
 
+![Grafana Dashboard](grafana-dashboard.png)
+
 ## Configuration
 
 ### Prometheus
