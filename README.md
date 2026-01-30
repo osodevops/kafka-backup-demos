@@ -37,6 +37,14 @@ The `docker-compose.yml` provides:
 | kafka-cli | Kafka CLI tools container | - |
 | kafka-backup | OSO Kafka Backup CLI | - |
 
+**Monitoring Services** (use `--profile monitoring`):
+
+| Service | Description | Port |
+|---------|-------------|------|
+| klag | Kafka Consumer Lag Exporter | 8888 |
+| prometheus | Metrics collection | 9091 |
+| grafana | Metrics visualization | 3000 |
+
 ### Supported Kafka Versions
 
 | Version | Image | Notes |
@@ -61,6 +69,7 @@ The `docker-compose.yml` provides:
 | [Basic Backup & Restore](cli/backup-basic/instructions.md) | `cli/backup-basic/` | Full backup/restore cycle to MinIO | Beginner |
 | [Large Messages](cli/large-messages/instructions.md) | `cli/large-messages/` | Handling large payloads with compression | Intermediate |
 | [Offset Mapping Report](cli/offset-report/instructions.md) | `cli/offset-report/` | JSON offset mapping & analysis | Intermediate |
+| [Consumer Lag Monitoring](cli/klag-monitoring/instructions.md) | `cli/klag-monitoring/` | Klag + Prometheus lag monitoring | Intermediate |
 | [PITR + Rollback](cli/pitr-rollback-e2e/instructions.md) | `cli/pitr-rollback-e2e/` | End-to-end point-in-time recovery | Advanced |
 
 ### Java Demos

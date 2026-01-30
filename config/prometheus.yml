@@ -1,0 +1,12 @@
+# Prometheus Configuration for Kafka Consumer Lag Monitoring
+# Used by: cli/klag-monitoring demo
+
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: 'klag'
+    static_configs:
+      - targets: ['klag:8888']
+    metrics_path: /metrics

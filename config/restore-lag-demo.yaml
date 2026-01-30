@@ -1,0 +1,27 @@
+# Lag Demo Restore Configuration
+# Used by: cli/klag-monitoring demo
+
+mode: restore
+backup_id: "lag-demo-backup"
+
+target:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - lag-demo-topic
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: lag-demo
+  endpoint: http://minio:9000
+  path_style: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+restore:
+  dry_run: false
+  include_original_offset_header: true
+  max_concurrent_partitions: 3

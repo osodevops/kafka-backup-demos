@@ -153,3 +153,58 @@ services:
       - ./data:/data
     profiles:
       - tools
+
+  # =============================================================================
+  # Monitoring Services (use --profile monitoring to enable)
+  # =============================================================================
+
+  # Klag - Kafka Consumer Lag Exporter
+  # Exposes consumer lag metrics for Prometheus
+  klag:
+    image: themoah/klag:latest
+    hostname: klag
+    container_name: klag
+    networks:
+      - kafka-net
+    ports:
+      - "8888:8888"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka-broker-1:9092
+      METRICS_REPORTER: prometheus
+      METRICS_INTERVAL_MS: 5000
+    depends_on:
+      - kafka-broker-1
+    profiles:
+      - monitoring
+
+  # Prometheus - Metrics collection and querying
+  prometheus:
+    image: prom/prometheus:latest
+    hostname: prometheus
+    container_name: prometheus
+    networks:
+      - kafka-net
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - klag
+    profiles:
+      - monitoring
+
+  # Grafana - Metrics visualization
+  grafana:
+    image: grafana/grafana:latest
+    hostname: grafana
+    container_name: grafana
+    networks:
+      - kafka-net
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring

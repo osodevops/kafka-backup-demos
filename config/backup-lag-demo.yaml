@@ -1,0 +1,29 @@
+# Lag Demo Backup Configuration
+# Used by: cli/klag-monitoring demo
+
+mode: backup
+backup_id: "lag-demo-backup"
+
+source:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - lag-demo-topic
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: lag-demo
+  endpoint: http://minio:9000
+  path_style: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+backup:
+  compression: zstd
+  continuous: false
+  segment_max_records: 10000
+  segment_max_bytes: 10485760  # 10MB
+  max_concurrent_partitions: 3
