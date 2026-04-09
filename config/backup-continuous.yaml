@@ -1,0 +1,43 @@
+# Continuous Incremental Backup Configuration
+# Used by: cli/continuous-incremental demo
+#
+# Runs continuously, tracking progress in a local SQLite database.
+# If interrupted, resumes from where it left off on next start.
+
+mode: backup
+backup_id: "continuous-backup"
+
+source:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - orders
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: continuous-demo
+  endpoint: http://minio:9000
+  path_style: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+backup:
+  compression: zstd
+  compression_level: 3
+  include_offset_headers: true
+
+  # Continuous mode: run forever, backing up new data as it arrives
+  continuous: true
+  start_offset: earliest
+
+  # Checkpoint and sync intervals
+  checkpoint_interval_secs: 5
+  sync_interval_secs: 10
+
+  # Poll interval between backup passes (ms)
+  poll_interval_ms: 500
+
+  max_concurrent_partitions: 3

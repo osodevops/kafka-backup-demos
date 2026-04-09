@@ -1,0 +1,31 @@
+# Live Producer Restore Configuration (Safe - Different Topic)
+# Used by: cli/live-producer-backup demo
+# Demonstrates: Safe restore to a different topic while producers run
+
+mode: restore
+backup_id: "live-producer-backup"
+
+target:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - live-test
+    # Rename the topic during restore to avoid conflicts
+    rename:
+      live-test: live-test-restored
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: live-producer-demo
+  endpoint: http://minio:9000
+  path_style: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+restore:
+  dry_run: false
+  include_original_offset_header: true
+  max_concurrent_partitions: 3

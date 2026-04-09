@@ -67,6 +67,9 @@ The `docker-compose.yml` provides:
 |------|------|---------|------------|
 | [Offset State Verification](cli/offset-testing/instructions.md) | `cli/offset-testing/` | Consumer offset snapshot & inspection | Beginner |
 | [Basic Backup & Restore](cli/backup-basic/instructions.md) | `cli/backup-basic/` | Full backup/restore cycle to MinIO | Beginner |
+| [Snapshot Backup](cli/snapshot-backup/instructions.md) | `cli/snapshot-backup/` | Consistent point-in-time snapshots (stop_at_current_offsets) | Beginner |
+| [Validation & Evidence](cli/validation-evidence/instructions.md) | `cli/validation-evidence/` | Deep integrity checks & compliance evidence | Intermediate |
+| [Continuous Incremental](cli/continuous-incremental/instructions.md) | `cli/continuous-incremental/` | Resumable incremental backups with offset tracking | Intermediate |
 | [Large Messages](cli/large-messages/instructions.md) | `cli/large-messages/` | Handling large payloads with compression | Intermediate |
 | [Offset Mapping Report](cli/offset-report/instructions.md) | `cli/offset-report/` | JSON offset mapping & analysis | Intermediate |
 | [Consumer Lag Monitoring](cli/klag-monitoring/instructions.md) | `cli/klag-monitoring/` | Klag + Prometheus lag monitoring | Intermediate |
@@ -113,11 +116,14 @@ docker compose --profile tools exec kafka-cli kafka-console-consumer.sh --bootst
 ## Core Features Demonstrated
 
 1. **Topic Backup & Restore** - Full backup to S3/MinIO with restore validation
-2. **Point-in-Time Recovery (PITR)** - Millisecond-precision time-window filtering
-3. **Consumer Offset Management** - Snapshots, rollback, and bulk reset
-4. **Offset Mapping** - JSON reports for migration planning
-5. **Large Message Handling** - Compression (zstd, lz4, gzip) for large payloads
-6. **Three-Phase Restore** - Solving the offset space discontinuity problem
+2. **Snapshot Backups** - Consistent point-in-time snapshots with `stop_at_current_offsets`
+3. **Continuous Incremental Backups** - Resumable backups with offset tracking across restarts
+4. **Point-in-Time Recovery (PITR)** - Millisecond-precision time-window filtering
+5. **Validation & Compliance** - Deep integrity checks and audit evidence generation
+6. **Consumer Offset Management** - Snapshots, rollback, and bulk reset
+7. **Offset Mapping** - JSON reports for migration planning
+8. **Large Message Handling** - Compression (zstd, lz4, gzip) for large payloads
+9. **Three-Phase Restore** - Solving the offset space discontinuity problem
 
 ## Cleanup
 
