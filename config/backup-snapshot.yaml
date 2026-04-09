@@ -1,0 +1,35 @@
+# Snapshot Backup Configuration
+# Used by: cli/snapshot-backup demo
+#
+# Captures high watermarks at start, backs up all data to those offsets,
+# then exits cleanly. Ideal for scheduled DR backups (CronJobs).
+
+mode: backup
+backup_id: "snapshot-backup"
+
+source:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - orders
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: snapshot-demo
+  endpoint: http://minio:9000
+  path_style: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+backup:
+  compression: zstd
+  compression_level: 3
+  include_offset_headers: true
+
+  # Snapshot mode: capture HWMs at start, exit when caught up
+  stop_at_current_offsets: true
+
+  max_concurrent_partitions: 3
