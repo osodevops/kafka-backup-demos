@@ -1,0 +1,42 @@
+mode: backup
+backup_id: "enterprise-full-backup"
+
+source:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - "orders"
+      - "payments"
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: enterprise-full
+  endpoint: http://minio:9000
+  path_style: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+backup:
+  compression: zstd
+
+enterprise:
+  schema_registry:
+    url: "http://schema-registry:8081"
+    backup:
+      subjects:
+        - "orders-*"
+        - "payments-*"
+      exclude:
+        - "*-internal"
+
+  apicurio_registry:
+    url: "http://apicurio-registry:8080"
+    backup:
+      groups:
+        - "payments"
+        - "orders"
+        - "common"
+      include_export: true

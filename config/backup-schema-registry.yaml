@@ -1,0 +1,25 @@
+mode: backup
+backup_id: "sr-demo-backup"
+
+source:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: sr-demo
+  endpoint: http://minio:9000
+  path_style: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+enterprise:
+  schema_registry:
+    url: "http://schema-registry:8081"
+    backup:
+      subjects:
+        - "*"
+      include_versions: all
+      include_references: true

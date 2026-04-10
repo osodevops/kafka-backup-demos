@@ -128,13 +128,9 @@ services:
     entrypoint: []
     command: ["bash"]
 
-  # Kafka Backup CLI - the backup/restore tool
+  # Kafka Backup CLI (OSS) - the backup/restore tool
   kafka-backup:
     image: osodevops/kafka-backup:latest
-    # Alternative: Build from local kafka-backup repo
-    # build:
-    #   context: ../kafka-backup
-    #   dockerfile: Dockerfile
     networks:
       - kafka-net
     environment:
@@ -208,3 +204,164 @@ services:
       - prometheus
     profiles:
       - monitoring
+
+  # ═══════════════════════════════════════════════════════════
+  # Enterprise Services (docker compose --profile enterprise up -d)
+  # ═══════════════════════════════════════════════════════════
+
+  # Kafka Backup Enterprise CLI
+  kafka-backup-enterprise:
+    image: osodevops/kafka-backup-enterprise:v0.2.1
+    platform: linux/amd64
+    networks:
+      - kafka-net
+    environment:
+      KAFKA_BROKERS: kafka-broker-1:9092
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      RUST_LOG: info
+    depends_on:
+      - kafka-broker-1
+      - minio
+    volumes:
+      - ./config:/config
+      - ./data:/data
+    profiles:
+      - enterprise
+
+  # Confluent Schema Registry (for enterprise demos)
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.6.0
+    hostname: schema-registry
+    container_name: schema-registry
+    networks:
+      - kafka-net
+    ports:
+      - "8081:8081"
+    depends_on:
+      - kafka-broker-1
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka-broker-1:9094
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_SCHEMA_REGISTRY_INTER_INSTANCE_PROTOCOL: http
+    profiles:
+      - enterprise
+
+  # Schema Registry test data
+  schema-setup:
+    image: confluentinc/cp-schema-registry:7.6.0
+    networks:
+      - kafka-net
+    depends_on:
+      - schema-registry
+    restart: on-failure
+    profiles:
+      - enterprise
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo 'Waiting for Schema Registry...'
+        until curl -sf http://schema-registry:8081/subjects > /dev/null 2>&1; do sleep 2; done
+        echo 'Registering demo schemas...'
+
+        curl -sf -X POST http://schema-registry:8081/subjects/orders-value/versions \
+          -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+          -d '{"schema":"{\"type\":\"record\",\"name\":\"Order\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"order_id\",\"type\":\"string\"},{\"name\":\"customer_id\",\"type\":\"string\"},{\"name\":\"amount\",\"type\":\"double\"},{\"name\":\"created_at\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}"}'
+
+        curl -sf -X POST http://schema-registry:8081/subjects/orders-value/versions \
+          -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+          -d '{"schema":"{\"type\":\"record\",\"name\":\"Order\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"order_id\",\"type\":\"string\"},{\"name\":\"customer_id\",\"type\":\"string\"},{\"name\":\"amount\",\"type\":\"double\"},{\"name\":\"created_at\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}},{\"name\":\"status\",\"type\":[\"null\",\"string\"],\"default\":null}]}"}'
+
+        curl -sf -X POST http://schema-registry:8081/subjects/payments-value/versions \
+          -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+          -d '{"schema":"{\"type\":\"record\",\"name\":\"Payment\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"payment_id\",\"type\":\"string\"},{\"name\":\"order_id\",\"type\":\"string\"},{\"name\":\"amount\",\"type\":\"double\"},{\"name\":\"currency\",\"type\":\"string\"}]}"}'
+
+        curl -sf -X POST http://schema-registry:8081/subjects/users-value/versions \
+          -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+          -d '{"schemaType":"JSON","schema":"{\"type\":\"object\",\"properties\":{\"user_id\":{\"type\":\"string\"},\"email\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"}},\"required\":[\"user_id\",\"email\"]}"}'
+
+        curl -sf -X PUT http://schema-registry:8081/config/orders-value \
+          -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+          -d '{"compatibility":"FULL"}'
+
+        echo ''
+        echo 'Schemas registered:'
+        curl -sf http://schema-registry:8081/subjects
+
+  # Apicurio Registry (for enterprise demos)
+  apicurio-postgres:
+    image: postgres:16
+    hostname: apicurio-postgres
+    networks:
+      - kafka-net
+    environment:
+      POSTGRES_DB: apicurio
+      POSTGRES_USER: apicurio
+      POSTGRES_PASSWORD: apicurio
+    profiles:
+      - enterprise
+
+  apicurio-registry:
+    image: quay.io/apicurio/apicurio-registry:latest-release
+    hostname: apicurio-registry
+    container_name: apicurio-registry
+    networks:
+      - kafka-net
+    ports:
+      - "8085:8080"
+    depends_on:
+      - apicurio-postgres
+    environment:
+      APICURIO_STORAGE_KIND: sql
+      APICURIO_STORAGE_SQL_KIND: postgresql
+      APICURIO_DATASOURCE_URL: jdbc:postgresql://apicurio-postgres:5432/apicurio
+      APICURIO_DATASOURCE_USERNAME: apicurio
+      APICURIO_DATASOURCE_PASSWORD: apicurio
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/q/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    profiles:
+      - enterprise
+
+  # Apicurio test data
+  apicurio-setup:
+    image: curlimages/curl:latest
+    networks:
+      - kafka-net
+    depends_on:
+      apicurio-registry:
+        condition: service_healthy
+    restart: on-failure
+    profiles:
+      - enterprise
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        AR=http://apicurio-registry:8080/apis/registry/v3
+        echo 'Setting up Apicurio Registry test data...'
+
+        curl -sf -X POST $$AR/groups -H 'Content-Type: application/json' \
+          -d '{"groupId":"payments","description":"Payment domain schemas"}'
+        curl -sf -X POST $$AR/groups -H 'Content-Type: application/json' \
+          -d '{"groupId":"orders","description":"Order domain schemas"}'
+        curl -sf -X POST $$AR/groups -H 'Content-Type: application/json' \
+          -d '{"groupId":"common","description":"Shared types"}'
+
+        curl -sf -X POST $$AR/groups/common/artifacts -H 'Content-Type: application/json' \
+          -d '{"artifactId":"Address","artifactType":"AVRO","firstVersion":{"version":"1","content":{"content":"{\"type\":\"record\",\"name\":\"Address\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"street\",\"type\":\"string\"},{\"name\":\"city\",\"type\":\"string\"},{\"name\":\"country\",\"type\":\"string\"}]}","contentType":"application/json"}}}'
+
+        curl -sf -X POST $$AR/groups/payments/artifacts -H 'Content-Type: application/json' \
+          -d '{"artifactId":"PaymentEvent","artifactType":"AVRO","firstVersion":{"version":"1","content":{"content":"{\"type\":\"record\",\"name\":\"PaymentEvent\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"payment_id\",\"type\":\"string\"},{\"name\":\"amount\",\"type\":\"double\"},{\"name\":\"currency\",\"type\":\"string\"}]}","contentType":"application/json"}}}'
+
+        curl -sf -X POST $$AR/groups/orders/artifacts -H 'Content-Type: application/json' \
+          -d '{"artifactId":"OrderCreated","artifactType":"PROTOBUF","firstVersion":{"version":"1","content":{"content":"syntax = \"proto3\";\npackage com.example;\nmessage OrderCreated { string order_id = 1; string customer_id = 2; double amount = 3; }","contentType":"application/x-protobuf"}}}'
+
+        curl -sf -X POST $$AR/admin/rules -H 'Content-Type: application/json' \
+          -d '{"ruleType":"COMPATIBILITY","config":"BACKWARD"}'
+
+        echo ''
+        echo 'Apicurio test data registered:'
+        curl -sf $$AR/groups

@@ -1,0 +1,28 @@
+mode: backup
+backup_id: "apicurio-demo-backup"
+
+source:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: apicurio-demo
+  endpoint: http://minio:9000
+  path_style: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+enterprise:
+  apicurio_registry:
+    url: "http://apicurio-registry:8080"
+    backup:
+      groups:
+        - "*"
+      artifacts:
+        - "*"
+      include_export: true
+      include_versions: all
+      include_references: true
