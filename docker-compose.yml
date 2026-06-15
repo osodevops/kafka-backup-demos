@@ -3,7 +3,7 @@
 #
 # Architecture:
 #   - kafka-broker-1: apache/kafka (official image) - the actual Kafka broker
-#   - kafka-setup/kafka-cli: bitnami/kafka - CLI tools with bash support
+#   - kafka-setup/kafka-cli: confluentinc/cp-kafka - CLI tools with bash support
 #   - kafka-backup: osodevops/kafka-backup - the backup tool
 #
 # Usage:
@@ -27,7 +27,6 @@ services:
   kafka-broker-1:
     image: apache/kafka:${KAFKA_VERSION:-3.7.1}
     hostname: kafka-broker-1
-    container_name: kafka-broker-1
     restart: always
     networks:
       - kafka-net
@@ -54,15 +53,18 @@ services:
       KAFKA_REPLICA_FETCH_MAX_BYTES: 15728640
 
   # Topic setup helper - creates all demo topics
-  # Uses bitnami/kafka for bash support (apache/kafka is a minimal JRE image without shell)
   kafka-setup:
-    image: bitnami/kafka:${KAFKA_VERSION:-3.7.1}
+    image: ${KAFKA_CLI_IMAGE:-confluentinc/cp-kafka:7.6.0}
     hostname: kafka-setup
     networks:
       - kafka-net
     depends_on:
       - kafka-broker-1
     restart: on-failure
+    environment:
+      PATH: /usr/local/kafka-cli-compat:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    volumes:
+      - ./tools/kafka-cli-compat:/usr/local/kafka-cli-compat:ro
     command: >
       bash -c 'echo "Waiting for Kafka to be ready..." &&
       sleep 10 &&
@@ -80,7 +82,6 @@ services:
   minio:
     image: minio/minio:latest
     hostname: minio
-    container_name: minio
     networks:
       - kafka-net
     ports:
@@ -110,9 +111,8 @@ services:
       "
 
   # Kafka CLI tools (for running kafka-console-producer, kafka-console-consumer, etc.)
-  # Uses bitnami/kafka for bash support (apache/kafka is a minimal JRE image without shell)
   kafka-cli:
-    image: bitnami/kafka:${KAFKA_VERSION:-3.7.1}
+    image: ${KAFKA_CLI_IMAGE:-confluentinc/cp-kafka:7.6.0}
     hostname: kafka-cli
     networks:
       - kafka-net
@@ -120,9 +120,11 @@ services:
       - kafka-broker-1
     environment:
       KAFKA_BROKER: kafka-broker-1:9092
+      PATH: /usr/local/kafka-cli-compat:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     volumes:
       - ./data:/data
       - ./config:/config
+      - ./tools/kafka-cli-compat:/usr/local/kafka-cli-compat:ro
     profiles:
       - tools
     entrypoint: []
@@ -130,7 +132,7 @@ services:
 
   # Kafka Backup CLI (OSS) - the backup/restore tool
   kafka-backup:
-    image: osodevops/kafka-backup:latest
+    image: ${KAFKA_BACKUP_IMAGE:-osodevops/kafka-backup:latest}
     networks:
       - kafka-net
     environment:
@@ -157,17 +159,19 @@ services:
   # Klag - Kafka Consumer Lag Exporter
   # Exposes consumer lag metrics for Prometheus
   klag:
-    image: themoah/klag:latest
+    image: ${KLAG_IMAGE:-ghcr.io/themoah/klag:0.2.3}
     hostname: klag
-    container_name: klag
     networks:
       - kafka-net
     ports:
-      - "8888:8888"
+      - "${KLAG_METRICS_PORT:-8888}:8888"
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka-broker-1:9092
       METRICS_REPORTER: prometheus
       METRICS_INTERVAL_MS: 5000
+      MCP_ENABLED: ${KLAG_MCP_ENABLED:-false}
+      MCP_AUTH_TOKEN: ${KLAG_MCP_AUTH_TOKEN:-}
+      MCP_PATH: ${KLAG_MCP_PATH:-/mcp}
     depends_on:
       - kafka-broker-1
     profiles:
@@ -175,13 +179,12 @@ services:
 
   # Prometheus - Metrics collection and querying
   prometheus:
-    image: prom/prometheus:latest
+    image: ${PROMETHEUS_IMAGE:-quay.io/prometheus/prometheus:v2.54.1}
     hostname: prometheus
-    container_name: prometheus
     networks:
       - kafka-net
     ports:
-      - "9091:9090"
+      - "${PROMETHEUS_PORT:-9091}:9090"
     volumes:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
@@ -191,15 +194,18 @@ services:
 
   # Grafana - Metrics visualization
   grafana:
-    image: grafana/grafana:latest
+    image: ${GRAFANA_IMAGE:-grafana/grafana:11.1.4}
     hostname: grafana
-    container_name: grafana
     networks:
       - kafka-net
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./cli/klag-monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./cli/klag-monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./cli/klag-monitoring/klag-dashboard.json:/var/lib/grafana/dashboards/klag-dashboard.json:ro
     depends_on:
       - prometheus
     profiles:
@@ -233,7 +239,6 @@ services:
   schema-registry:
     image: confluentinc/cp-schema-registry:7.6.0
     hostname: schema-registry
-    container_name: schema-registry
     networks:
       - kafka-net
     ports:
@@ -305,7 +310,6 @@ services:
   apicurio-registry:
     image: quay.io/apicurio/apicurio-registry:latest-release
     hostname: apicurio-registry
-    container_name: apicurio-registry
     networks:
       - kafka-net
     ports:

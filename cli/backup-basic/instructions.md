@@ -90,6 +90,7 @@ storage:
   prefix: basic-demo
   endpoint: http://minio:9000    # MinIO endpoint
   path_style: true               # Required for MinIO
+  allow_http: true
   access_key_id: minioadmin
   secret_access_key: minioadmin
 
@@ -228,7 +229,8 @@ Or use IAM roles if running on EC2/EKS.
 
 ```bash
 # Remove the backup from MinIO
-docker compose --profile tools exec minio mc rm --recursive --force local/kafka-backups/basic-demo/
+docker compose run --rm --entrypoint /bin/sh minio-setup -c \
+  'mc alias set local http://minio:9000 minioadmin minioadmin && mc rm --recursive --force local/kafka-backups/basic-demo/'
 ```
 
 ## Next Steps

@@ -221,6 +221,8 @@ storage:
   bucket: kafka-backups
   prefix: pitr-demo
   endpoint: http://minio:9000
+  path_style: true
+  allow_http: true
 ```
 
 ### restore-pitr.yaml
@@ -281,7 +283,8 @@ restore:
 
 ```bash
 rm -f pitr-timestamp.txt snapshot-id.txt
-docker compose exec minio mc rm --recursive --force local/kafka-backups/pitr-demo/
+docker compose run --rm --entrypoint /bin/sh minio-setup -c \
+  'mc alias set local http://minio:9000 minioadmin minioadmin && mc rm --recursive --force local/kafka-backups/pitr-demo/'
 ```
 
 ## Next Steps

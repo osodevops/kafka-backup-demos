@@ -99,7 +99,14 @@ The `docker-compose.yml` provides:
 
 | Demo | Path | Feature | Difficulty |
 |------|------|---------|------------|
-| [Performance Benchmarks](benchmarks/instructions.md) | `benchmarks/` | Throughput, compression, latency testing | Intermediate |
+| [Performance Benchmarks](benchmarks/instructions.md) | `benchmarks/` | Throughput, pipelined flush, compression, latency testing | Intermediate |
+
+### Kubernetes Operator Demos
+
+| Demo | Path | Feature | Difficulty |
+|------|------|---------|------------|
+| [kafka-backup-operator Retention Behavior](operators/kafka-backup-operator-retention/README.md) | `operators/kafka-backup-operator-retention/` | Current retention model and external cleanup pattern | Beginner |
+| [Strimzi Backup Operator Safety Controls](operators/strimzi-backup-operator-safety/README.md) | `operators/strimzi-backup-operator-safety/` | Host aliases, suspend, selected restore, service accounts, backoff limits | Intermediate |
 
 ## Running kafka-backup Commands
 
@@ -123,7 +130,9 @@ docker compose --profile tools exec kafka-cli kafka-console-consumer.sh --bootst
 6. **Consumer Offset Management** - Snapshots, rollback, and bulk reset
 7. **Offset Mapping** - JSON reports for migration planning
 8. **Large Message Handling** - Compression (zstd, lz4, gzip) for large payloads
-9. **Three-Phase Restore** - Solving the offset space discontinuity problem
+9. **Pipelined Segment Flush** - v0.15.8 backup performance improvement for compressed segment uploads
+10. **Operator Safety Controls** - Kubernetes CRD validation for recent operator behavior fixes
+11. **Three-Phase Restore** - Solving the offset space discontinuity problem
 
 ## Cleanup
 

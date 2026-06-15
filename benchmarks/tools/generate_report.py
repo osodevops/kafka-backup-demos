@@ -65,6 +65,12 @@ def generate_report(results: dict) -> str:
         backup_mbps = throughput.get('backup_mbps', 0)
         lines.append(f"| Throughput (Backup) | {backup_mbps:.1f} MB/s | 100 MB/s | {check_target(backup_mbps, 100)} |")
 
+    # Pipelined flush
+    pipelined = scenarios.get('pipelined-flush', {})
+    if pipelined:
+        current_mbps = pipelined.get('current_backup_mbps', 0)
+        lines.append(f"| Pipelined Flush Backup | {current_mbps:.1f} MB/s | compare baseline | INFO |")
+
     # Compression
     compression = scenarios.get('compression', {})
     if compression:
@@ -97,6 +103,34 @@ def generate_report(results: dict) -> str:
         if 'partitions_1' not in throughput:
             lines.append(f"| 3 | {throughput.get('backup_mbps', 0):.1f} | {throughput.get('restore_mbps', 0):.1f} | {format_duration(throughput.get('duration_s', 0))} |")
 
+        lines.append("")
+
+    # Pipelined flush details
+    if pipelined:
+        lines.append("## Pipelined Segment Flush")
+        lines.append("")
+        lines.append("| Image | Backup MB/s | Time | Records | Segments |")
+        lines.append("|-------|-------------|------|---------|----------|")
+        lines.append(
+            f"| {pipelined.get('current_image', 'current')} | "
+            f"{pipelined.get('current_backup_mbps', 0):.1f} | "
+            f"{format_duration(pipelined.get('current_time_s', 0))} | "
+            f"{pipelined.get('current_records', 0)} | "
+            f"{pipelined.get('current_segments', 0)} |"
+        )
+        if 'baseline_image' in pipelined:
+            lines.append(
+                f"| {pipelined.get('baseline_image', 'baseline')} | "
+                f"{pipelined.get('baseline_backup_mbps', 0):.1f} | "
+                f"{format_duration(pipelined.get('baseline_time_s', 0))} | "
+                f"{pipelined.get('baseline_records', 0)} | "
+                f"{pipelined.get('baseline_segments', 0)} |"
+            )
+            lines.append("")
+            lines.append(f"Wall-time speedup vs baseline: **{pipelined.get('speedup_pct', 0):.1f}%**")
+        else:
+            lines.append("")
+            lines.append("Set `KAFKA_BACKUP_BASELINE_IMAGE` to compare another kafka-backup tag against the current image.")
         lines.append("")
 
     # Compression details

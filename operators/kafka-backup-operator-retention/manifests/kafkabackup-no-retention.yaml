@@ -1,0 +1,31 @@
+apiVersion: kafka.oso.sh/v1alpha1
+kind: KafkaBackup
+metadata:
+  name: orders-scheduled-backup
+  namespace: kafka-backup-demo
+spec:
+  kafkaCluster:
+    bootstrapServers:
+      - kafka.kafka.svc.cluster.local:9092
+    securityProtocol: PLAINTEXT
+  topics:
+    - orders
+    - payments
+  storage:
+    storageType: s3
+    s3:
+      bucket: kafka-backups
+      region: eu-west-1
+      endpoint: http://minio.storage.svc.cluster.local:9000
+      pathStyle: true
+      allowHttp: true
+      prefix: demo/orders
+      credentialsSecret:
+        name: backup-s3-credentials
+        accessKeyIdKey: AWS_ACCESS_KEY_ID
+        secretAccessKeyKey: AWS_SECRET_ACCESS_KEY
+  compression: zstd
+  stopAtCurrentOffsets: true
+  includeOffsetHeaders: true
+  consumerGroupSnapshot: true
+  schedule: "0 0 */4 * * * *"

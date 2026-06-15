@@ -1,0 +1,36 @@
+apiVersion: kafkabackup.com/v1alpha1
+kind: KafkaRestore
+metadata:
+  name: selected-topic-restore
+  namespace: kafka-backup-demo
+  labels:
+    strimzi.io/cluster: demo-kafka-dr
+spec:
+  strimziClusterRef:
+    name: demo-kafka-dr
+  backupRef:
+    name: orders-safety-backup
+    backupId: backup-20260615-020000
+  topics:
+    include:
+      - "orders-*"
+      - "payments-*"
+    exclude:
+      - "payments-test-*"
+  topicMapping:
+    - sourceTopic: orders-v1
+      targetTopic: orders-restored
+  restore:
+    topicCreation: auto
+    existingTopicPolicy: append
+    dryRun: true
+    includeOriginalOffsetHeader: true
+    parallelism: 4
+  backoffLimit: 0
+  template:
+    pod:
+      serviceAccountName: kafka-restore-jobs
+      hostAliases:
+        - ip: "10.10.0.5"
+          hostnames:
+            - s3.internal

@@ -17,13 +17,29 @@ echo ""
 
 cd "$PROJECT_ROOT"
 
+minio_rm_prefix() {
+    local prefix="$1"
+    docker compose run --rm --entrypoint /bin/sh minio-setup -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin >/dev/null
+        mc rm --recursive --force local/kafka-backups/${prefix}/ >/dev/null 2>&1 || true
+    " >/dev/null
+}
+
+minio_du_prefix() {
+    local prefix="$1"
+    docker compose run --rm --entrypoint /bin/sh minio-setup -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin >/dev/null
+        mc du local/kafka-backups/${prefix}/ 2>/dev/null || true
+    "
+}
+
 declare -A COMPRESSION_RESULTS
 
 for algo in zstd lz4 none; do
     echo "Testing compression: $algo"
 
     # Clean up
-    docker compose exec minio mc rm --recursive --force local/kafka-backups/benchmark-compression-$algo/ 2>/dev/null || true
+    minio_rm_prefix "benchmark-compression-$algo"
 
     # Create config for this algorithm
     cat > /tmp/benchmark-compression-$algo.yaml << EOF
@@ -44,6 +60,7 @@ storage:
   prefix: benchmark-compression-$algo
   endpoint: http://minio:9000
   path_style: true
+  allow_http: true
   access_key_id: minioadmin
   secret_access_key: minioadmin
 
@@ -65,7 +82,7 @@ EOF
     DURATION=$(echo "$END_TIME - $START_TIME" | bc)
 
     # Get compressed size from MinIO
-    COMPRESSED_SIZE=$(docker compose exec minio mc du local/kafka-backups/benchmark-compression-$algo/ 2>/dev/null | awk '{print $1}' | head -1)
+    COMPRESSED_SIZE=$(minio_du_prefix "benchmark-compression-$algo" | awk '{print $1}' | head -1)
 
     # Parse size (handle K, M, G suffixes)
     if [[ $COMPRESSED_SIZE == *"MiB"* ]]; then
