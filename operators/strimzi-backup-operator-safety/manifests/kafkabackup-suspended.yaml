@@ -1,0 +1,53 @@
+apiVersion: kafkabackup.com/v1alpha1
+kind: KafkaBackup
+metadata:
+  name: orders-safety-backup
+  namespace: kafka-backup-demo
+  labels:
+    strimzi.io/cluster: demo-kafka
+spec:
+  strimziClusterRef:
+    name: demo-kafka
+  topics:
+    include:
+      - "orders-*"
+      - "payments-*"
+    exclude:
+      - "__*"
+      - "*-internal"
+  storage:
+    type: s3
+    s3:
+      bucket: kafka-backups
+      region: eu-west-1
+      prefix: strimzi/demo-kafka
+      endpoint: http://minio.storage.svc.cluster.local:9000
+      forcePathStyle: true
+      allowHttp: true
+      accessKeySecret:
+        name: backup-s3-credentials
+        key: access-key-id
+      secretKeySecret:
+        name: backup-s3-credentials
+        key: secret-access-key
+  backup:
+    compression: zstd
+    parallelism: 4
+    stopAtCurrentOffsets: true
+    includeOffsetHeaders: true
+  schedule:
+    cron: "0 2 * * *"
+    timezone: UTC
+    suspend: true
+  retention:
+    maxBackups: 14
+    maxAge: "14d"
+    pruneOnSchedule: true
+  backoffLimit: 1
+  template:
+    pod:
+      serviceAccountName: kafka-backup-jobs
+      hostAliases:
+        - ip: "10.10.0.5"
+          hostnames:
+            - s3.internal

@@ -26,6 +26,7 @@ Performance benchmarks for OSO Kafka Backup demonstrating throughput, latency, a
 | Scenario | Description | Duration |
 |----------|-------------|----------|
 | [Throughput](scenarios/throughput/) | Maximum backup/restore speed | 2-5 min |
+| [Pipelined Flush](scenarios/pipelined-flush/) | v0.15.8 segment compression/upload pipelining | 2-5 min |
 | [Compression](scenarios/compression/) | Algorithm comparison | 3-5 min |
 | [Latency](scenarios/latency/) | Checkpoint & segment latencies | 2-3 min |
 | [Large Messages](scenarios/large-messages/) | 100KB-5MB message handling | 2-3 min |
@@ -60,9 +61,22 @@ Performance benchmarks for OSO Kafka Backup demonstrating throughput, latency, a
 ### Individual Scenarios
 ```bash
 ./run_benchmarks.sh throughput quick
+./run_benchmarks.sh pipelined-flush quick
 ./run_benchmarks.sh compression standard
 ./run_benchmarks.sh latency full
 ```
+
+### Pipelined Flush Comparison
+
+The `pipelined-flush` scenario demonstrates the v0.15.8 backup engine change that overlaps sealed segment compression/upload with continued Kafka fetching. Run it against the current image, or compare two image tags:
+
+```bash
+KAFKA_BACKUP_IMAGE=osodevops/kafka-backup:v0.15.8 \
+KAFKA_BACKUP_BASELINE_IMAGE=osodevops/kafka-backup:v0.15.7 \
+./run_benchmarks.sh pipelined-flush standard
+```
+
+For local development, point `KAFKA_BACKUP_IMAGE` at a locally built image such as `kafka-backup:local-v0.15.8`.
 
 ## Results
 

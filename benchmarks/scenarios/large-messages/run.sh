@@ -15,6 +15,14 @@ echo ""
 
 cd "$PROJECT_ROOT"
 
+minio_rm_prefix() {
+    local prefix="$1"
+    docker compose run --rm --entrypoint /bin/sh minio-setup -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin >/dev/null
+        mc rm --recursive --force local/kafka-backups/${prefix}/ >/dev/null 2>&1 || true
+    " >/dev/null
+}
+
 # Test configurations: size_kb, count
 declare -A TEST_CONFIGS
 TEST_CONFIGS["100kb"]="102400 1000"   # 100KB * 1000 = 100MB
@@ -53,7 +61,7 @@ for size_label in "100kb" "1mb" "5mb"; do
     " 2>/dev/null
 
     # Clean up previous backup
-    docker compose exec minio mc rm --recursive --force local/kafka-backups/benchmark-large-$size_label/ 2>/dev/null || true
+    minio_rm_prefix "benchmark-large-$size_label"
 
     # Create backup config
     cat > /tmp/benchmark-large-$size_label.yaml << EOF
@@ -74,6 +82,7 @@ storage:
   prefix: benchmark-large-$size_label
   endpoint: http://minio:9000
   path_style: true
+  allow_http: true
   access_key_id: minioadmin
   secret_access_key: minioadmin
 

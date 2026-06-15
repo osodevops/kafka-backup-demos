@@ -1,15 +1,26 @@
 # CLI Demo: Consumer Lag Monitoring with Klag
 
-**Core Feature:** Monitor consumer lag during backup/restore operations using Klag + Prometheus
+**Core Feature:** Monitor consumer lag during backup/restore operations using Klag, Prometheus, and Grafana.
 
 ## Overview
 
-This demo integrates [Klag](https://github.com/themoah/klag) (Kafka Consumer Lag Exporter) with kafka-backup to demonstrate real-time consumer lag monitoring during backup and restore operations.
+This demo integrates [Klag](https://github.com/themoah/klag), a Kafka consumer lag exporter, with kafka-backup to demonstrate alert-driven backup timing and restore recovery monitoring.
 
-**Klag** is a lightweight Kafka consumer lag exporter that exposes Prometheus metrics including:
-- `klag_consumer_lag` - Current lag per partition
-- `klag_consumer_lag_velocity` - Rate of lag change
-- `klag_consumer_group_state` - Consumer group health state
+The demo script defaults to Klag `0.2.3`, which includes the `0.2.2` features this demo depends on. To reproduce the original issue target exactly, set `KLAG_VERSION=0.2.2` when running the script, or set `KLAG_IMAGE=ghcr.io/themoah/klag:0.2.2` when starting Compose directly.
+
+Key Klag metrics used here:
+
+| Metric | Why it matters |
+|--------|----------------|
+| `klag_consumer_lag` | Current lag per partition |
+| `klag_consumer_lag_sum` / `max` / `min` | Native aggregate lag series |
+| `klag_consumer_lag_velocity` | Native lag change rate; positive means falling behind, negative means catching up |
+| `klag_consumer_lag_ms` | Time-based lag from Kafka log timestamps |
+| `klag_consumer_lag_time_to_close_seconds` | Recovery ETA while a consumer catches up |
+| `klag_consumer_lag_retention_percent` | Data-loss-prevention signal; lag as a percentage of retained log data |
+| `klag_consumer_group_state` | Consumer group health state |
+
+Klag Prometheus labels use `consumer_group`, `topic`, and `partition` where applicable.
 
 ## Prerequisites
 
@@ -25,10 +36,21 @@ docker compose logs -f kafka-setup
 ## Quick Start
 
 ```bash
-# Run the automated demo
 cd cli/klag-monitoring
 chmod +x demo.sh
 ./demo.sh
+```
+
+Use an explicit Klag version when needed:
+
+```bash
+KLAG_VERSION=0.2.2 ./demo.sh
+```
+
+For manual Compose runs, override the image directly:
+
+```bash
+KLAG_IMAGE=ghcr.io/themoah/klag:0.2.2 docker compose --profile monitoring up -d
 ```
 
 ## Manual Walkthrough
@@ -39,7 +61,7 @@ chmod +x demo.sh
 # Start core Kafka services
 docker compose up -d
 
-# Start monitoring stack (klag, prometheus, grafana)
+# Start monitoring stack: klag, prometheus, grafana
 docker compose --profile monitoring up -d
 ```
 
@@ -56,10 +78,7 @@ docker compose --profile tools run --rm kafka-cli bash -c '
 ### Step 3: Verify Klag Metrics Endpoint
 
 ```bash
-# Check klag is responding
 curl http://localhost:8888/metrics
-
-# Look for klag metrics
 curl -s http://localhost:8888/metrics | grep klag_
 ```
 
@@ -68,7 +87,6 @@ curl -s http://localhost:8888/metrics | grep klag_
 Start a rate-limited consumer that processes messages slowly to create lag:
 
 ```bash
-# In a separate terminal - consume slowly (2 msg/sec)
 docker compose --profile tools run --rm kafka-cli bash -c '
     kafka-console-consumer.sh \
         --bootstrap-server kafka-broker-1:9092 \
@@ -81,10 +99,9 @@ docker compose --profile tools run --rm kafka-cli bash -c '
 '
 ```
 
-### Step 5: Produce Messages Faster Than Consumer
+### Step 5: Produce Faster Than the Consumer
 
 ```bash
-# Produce 500 messages quickly
 docker compose --profile tools run --rm kafka-cli bash -c '
     for i in $(seq 1 500); do
         echo "{\"id\": $i, \"timestamp\": \"$(date -Iseconds)\", \"data\": \"message-$i\"}"
@@ -97,13 +114,13 @@ docker compose --profile tools run --rm kafka-cli bash -c '
 ### Step 6: Observe Lag Building Up
 
 ```bash
-# Query klag metrics directly
 curl -s http://localhost:8888/metrics | grep klag_consumer_lag
 
 # Example output:
-# klag_consumer_lag{group="lag-demo-consumers",topic="lag-demo-topic",partition="0"} 150
-# klag_consumer_lag{group="lag-demo-consumers",topic="lag-demo-topic",partition="1"} 148
-# klag_consumer_lag{group="lag-demo-consumers",topic="lag-demo-topic",partition="2"} 152
+# klag_consumer_lag{consumer_group="lag-demo-consumers",topic="lag-demo-topic",partition="0"} 150
+# klag_consumer_lag_sum{consumer_group="lag-demo-consumers"} 450
+# klag_consumer_lag_velocity{consumer_group="lag-demo-consumers",topic="lag-demo-topic"} 8.4
+# klag_consumer_lag_ms{consumer_group="lag-demo-consumers",topic="lag-demo-topic"} 240000
 ```
 
 ### Step 7: Query Prometheus
@@ -112,14 +129,30 @@ curl -s http://localhost:8888/metrics | grep klag_consumer_lag
 # Check Prometheus targets
 curl http://localhost:9091/api/v1/targets
 
-# Query consumer lag
+# Raw lag
 curl 'http://localhost:9091/api/v1/query?query=klag_consumer_lag'
 
-# Total lag across all partitions
-curl 'http://localhost:9091/api/v1/query?query=sum(klag_consumer_lag)%20by%20(group)'
+# Native aggregate lag per consumer group
+curl 'http://localhost:9091/api/v1/query?query=sum(klag_consumer_lag_sum)%20by%20(consumer_group)'
+
+# Lag velocity; positive means falling behind, negative means catching up
+curl 'http://localhost:9091/api/v1/query?query=klag_consumer_lag_velocity'
 ```
 
-### Step 8: Take Backup While Lag Exists
+Do not use `rate(klag_consumer_lag[1m])`: lag is a gauge, so Prometheus `rate()` is not meaningful for it. Use Klag's native `klag_consumer_lag_velocity` instead.
+
+### Step 8: Take Backup When Retention Risk Appears
+
+Klag's data-loss-prevention metric shows how much of the retained log window is already consumed by lag. In production this can drive an alert that says "back up now, unconsumed data is close to falling off the log."
+
+```promql
+# Page when any group/topic has consumed more than 80% of available retention
+max by (consumer_group, topic) (
+  klag_consumer_lag_retention_percent{topic="lag-demo-topic"}
+) > 80
+```
+
+Run a backup while lag still exists:
 
 ```bash
 docker compose --profile tools run --rm kafka-backup \
@@ -130,9 +163,8 @@ docker compose --profile tools run --rm kafka-backup \
 ### Step 9: Simulate Data Loss
 
 ```bash
-# Stop the consumer (Ctrl+C in consumer terminal)
+# Stop the consumer first.
 
-# Delete consumer group and topic
 docker compose --profile tools run --rm kafka-cli bash -c '
     kafka-consumer-groups.sh --bootstrap-server kafka-broker-1:9092 \
         --delete --group lag-demo-consumers
@@ -141,22 +173,21 @@ docker compose --profile tools run --rm kafka-cli bash -c '
 '
 ```
 
-### Step 10: Restore and Monitor Recovery
+Klag cleans up stale groups. After the consumer group and topic are deleted, the group's metrics should disappear rather than flatline at the last lag value.
+
+### Step 10: Restore and Monitor Recovery ETA
 
 ```bash
-# Recreate topic
 docker compose --profile tools run --rm kafka-cli bash -c '
     kafka-topics.sh --bootstrap-server kafka-broker-1:9092 \
         --create --topic lag-demo-topic \
         --partitions 3 --replication-factor 1
 '
 
-# Restore from backup
 docker compose --profile tools run --rm kafka-backup \
     restore \
     --config /config/restore-lag-demo.yaml
 
-# Restart consumer and watch lag recover
 docker compose --profile tools run --rm kafka-cli bash -c '
     kafka-console-consumer.sh \
         --bootstrap-server kafka-broker-1:9092 \
@@ -169,8 +200,42 @@ docker compose --profile tools run --rm kafka-cli bash -c '
 ### Step 11: Verify Lag Recovery
 
 ```bash
-# Watch lag decrease to 0
-watch -n 2 'curl -s http://localhost:8888/metrics | grep klag_consumer_lag'
+# Watch lag and recovery ETA
+watch -n 2 'curl -s http://localhost:8888/metrics | grep -E "klag_consumer_lag(_sum|_velocity|_time_to_close_seconds)?"'
+```
+
+`klag_consumer_lag_time_to_close_seconds` estimates when a catching-up consumer reaches zero lag. It is most useful after restore, when you need an RTO countdown rather than only a raw lag number.
+
+## Grafana Dashboard
+
+Grafana is provisioned automatically with:
+
+- Prometheus datasource: `http://prometheus:9090`
+- Klag dashboard: [klag-dashboard.json](klag-dashboard.json), copied from upstream `dashboard/demo-dashboard.json`
+
+Open http://localhost:3000 and sign in with `admin/admin`. The dashboard appears under the `Kafka Backup` folder as `Klag - Kafka Lag Monitoring`.
+
+If port `3000` is already in use, the demo script chooses the next available port and prints the actual Grafana URL. For manual runs, set `GRAFANA_PORT`, `PROMETHEUS_PORT`, or `KLAG_METRICS_PORT` before starting Compose.
+
+## MCP Endpoint
+
+Klag ships an opt-in read-only MCP endpoint for AI/SRE agents. The demo keeps it disabled by default.
+
+```bash
+KLAG_MCP_ENABLED=true \
+KLAG_MCP_AUTH_TOKEN=demo-token \
+docker compose --profile monitoring up -d klag
+```
+
+When enabled, the endpoint is exposed by Klag at `http://localhost:8888/mcp`. Use `Authorization: Bearer demo-token` when `KLAG_MCP_AUTH_TOKEN` is set.
+
+## Helm Chart
+
+Klag also ships an official Helm chart in the upstream repository:
+
+```bash
+git clone https://github.com/themoah/klag.git
+helm install klag ./klag/charts/klag --set kafka.bootstrapServers="kafka-broker:9092"
 ```
 
 ## Monitoring Endpoints
@@ -181,78 +246,59 @@ watch -n 2 'curl -s http://localhost:8888/metrics | grep klag_consumer_lag'
 | Prometheus | http://localhost:9091 | - |
 | Grafana | http://localhost:3000 | admin/admin |
 
-## Key Klag Metrics
-
-| Metric | Description |
-|--------|-------------|
-| `klag_consumer_lag` | Current lag per partition |
-| `klag_consumer_lag_velocity` | Rate of lag change (messages/sec) |
-| `klag_consumer_group_state` | Consumer group state (0=Unknown, 1=PreparingRebalance, 2=CompletingRebalance, 3=Stable, 4=Dead, 5=Empty) |
+The default host ports can be overridden with `KLAG_METRICS_PORT`, `PROMETHEUS_PORT`, and `GRAFANA_PORT`.
 
 ## Sample Prometheus Queries
 
 ```promql
 # Total lag per consumer group
-sum(klag_consumer_lag) by (group)
+sum(klag_consumer_lag_sum) by (consumer_group)
 
 # Lag per topic and partition
 klag_consumer_lag{topic="lag-demo-topic"}
 
-# Rate of lag change over 1 minute
-rate(klag_consumer_lag[1m])
+# Lag velocity: positive = falling behind, negative = catching up
+klag_consumer_lag_velocity{topic="lag-demo-topic"}
 
 # Consumer groups with lag > 100
-sum(klag_consumer_lag) by (group) > 100
+sum(klag_consumer_lag_sum) by (consumer_group) > 100
 
-# Lag velocity (are we catching up or falling behind?)
-klag_consumer_lag_velocity
+# Time-based lag in minutes
+klag_consumer_lag_ms{topic="lag-demo-topic"} / 1000 / 60
+
+# Recovery ETA in seconds
+klag_consumer_lag_time_to_close_seconds{topic="lag-demo-topic"}
+
+# Data-loss-prevention alert threshold
+max by (consumer_group, topic) (klag_consumer_lag_retention_percent) > 80
 ```
-
-## Creating Grafana Dashboards
-
-1. Open Grafana at http://localhost:3000
-2. Login with admin/admin
-3. Add Prometheus data source:
-   - URL: http://prometheus:9090
-4. Create dashboard with panels:
-   - Consumer Lag (gauge): `sum(klag_consumer_lag) by (group)`
-   - Lag Over Time (graph): `klag_consumer_lag`
-   - Consumer Group State (stat): `klag_consumer_group_state`
 
 ## Architecture
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│                 │     │                 │     │                 │
-│  Kafka Broker   │────▶│      Klag       │────▶│   Prometheus    │
-│                 │     │   (exporter)    │     │                 │
-└─────────────────┘     └─────────────────┘     └────────┬────────┘
-        │                       │                        │
-        │                       │                        ▼
-        ▼                       ▼                ┌─────────────────┐
-┌─────────────────┐     ┌─────────────────┐     │                 │
-│  kafka-backup   │     │  /metrics:8888  │     │    Grafana      │
-│                 │     │                 │     │                 │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
+```text
+Kafka Broker -> Klag exporter -> Prometheus -> Grafana
+      |              |
+      |              +-> /metrics:8888 and optional /mcp
+      |
+      +-> kafka-backup backup/restore workflow
 ```
 
 ## Key Observations
 
-1. **Lag Visibility**: Klag provides instant visibility into consumer group health
-2. **Backup Timing**: You can monitor lag before deciding to take a backup
-3. **Recovery Monitoring**: Watch lag recover to 0 after restore completes
-4. **Alerting Ready**: Prometheus metrics can drive alerts for lag thresholds
+1. **Lag Visibility**: Klag provides instant visibility into consumer group health.
+2. **Backup Timing**: Retention-percent alerts can trigger an immediate backup before unconsumed data ages out.
+3. **Recovery Monitoring**: Time-to-close gives an ETA after restore, not just a shrinking lag number.
+4. **Gauge Semantics**: Use `klag_consumer_lag_velocity` for lag movement; do not apply `rate()` to `klag_consumer_lag`.
+5. **Stale Cleanup**: Deleted consumer groups disappear from Klag metrics instead of flatlining.
 
 ## Cleanup
 
 ```bash
-# Stop monitoring services
 docker compose --profile monitoring down
 
-# Remove backup from MinIO
-docker compose --profile tools exec minio mc rm --recursive --force local/kafka-backups/lag-demo/
+docker compose run --rm --entrypoint /bin/sh minio-setup -c \
+  'mc alias set local http://minio:9000 minioadmin minioadmin && mc rm --recursive --force local/kafka-backups/lag-demo/'
 
-# Delete topic
 docker compose --profile tools run --rm kafka-cli bash -c '
     kafka-topics.sh --bootstrap-server kafka-broker-1:9092 \
         --delete --topic lag-demo-topic
@@ -261,6 +307,6 @@ docker compose --profile tools run --rm kafka-cli bash -c '
 
 ## Next Steps
 
-- Try the [Basic Backup & Restore](../backup-basic/instructions.md) demo
-- Explore [PITR + Rollback](../pitr-rollback-e2e/instructions.md) for point-in-time recovery
-- Check the [Benchmarks](../../benchmarks/instructions.md) for performance testing
+- Try the [Basic Backup & Restore](../backup-basic/instructions.md) demo.
+- Explore [PITR + Rollback](../pitr-rollback-e2e/instructions.md) for point-in-time recovery.
+- Check the [Benchmarks](../../benchmarks/instructions.md) for performance testing.

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Main Benchmark Orchestrator for kafka-backup
 # Usage: ./run_benchmarks.sh [scenario] [profile]
-#   scenario: all, throughput, compression, latency, large, scaling
+#   scenario: all, throughput, pipelined-flush, compression, latency, large, scaling
 #   profile:  quick, standard, full
 set -e
 
@@ -90,7 +90,7 @@ echo ""
 
 # Check Docker environment
 print_step "Checking Docker environment..."
-if ! docker compose ps | grep -q "kafka-broker-1.*running"; then
+if ! docker compose ps --status running --services | grep -qx "kafka-broker-1"; then
     print_error "Kafka not running. Starting environment..."
     docker compose up -d
     echo "Waiting for Kafka to be ready (30 seconds)..."
@@ -129,22 +129,24 @@ run_scenario() {
 case $SCENARIO in
     all)
         run_scenario "throughput"
+        run_scenario "pipelined-flush"
         run_scenario "compression"
         run_scenario "latency"
         run_scenario "large-messages"
         run_scenario "concurrent-partitions"
         ;;
-    throughput|compression|latency|large|large-messages|scaling|concurrent-partitions)
+    throughput|pipelined|pipeline|pipelined-flush|compression|latency|large|large-messages|scaling|concurrent-partitions)
         # Normalize scenario name
         case $SCENARIO in
             large) SCENARIO="large-messages" ;;
             scaling) SCENARIO="concurrent-partitions" ;;
+            pipelined|pipeline) SCENARIO="pipelined-flush" ;;
         esac
         run_scenario "$SCENARIO"
         ;;
     *)
         echo "Unknown scenario: $SCENARIO"
-        echo "Use: all, throughput, compression, latency, large, scaling"
+        echo "Use: all, throughput, pipelined-flush, compression, latency, large, scaling"
         exit 1
         ;;
 esac

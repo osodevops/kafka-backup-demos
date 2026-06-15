@@ -17,6 +17,8 @@ Complete reference for all kafka-backup demos.
 | 9 | [Spring Boot PITR](#9-spring-boot-producerconsumer-pitr) | `springboot/producer-consumer/` | Java | Microservice PITR | Advanced |
 | 10 | [Python Backup/Restore](#10-python-backup--restore) | `python/backup-restore-py/` | Python | Language-agnostic | Beginner |
 | 11 | [Benchmarks](#11-performance-benchmarks) | `benchmarks/` | Bash/Python | Performance testing | Intermediate |
+| 12 | [kafka-backup-operator Retention Behavior](#12-kafka-backup-operator-retention-behavior) | `operators/kafka-backup-operator-retention/` | Bash/Python | Operator retention model | Beginner |
+| 13 | [Strimzi Backup Operator Safety Controls](#13-strimzi-backup-operator-safety-controls) | `operators/strimzi-backup-operator-safety/` | Bash/Python | CRD safety controls | Intermediate |
 
 ---
 
@@ -254,8 +256,16 @@ Comprehensive performance testing suite for kafka-backup.
 ./benchmarks/run_full_benchmark.sh
 ```
 
+**Pipelined Flush Comparison:**
+```bash
+KAFKA_BACKUP_IMAGE=osodevops/kafka-backup:v0.15.8 \
+KAFKA_BACKUP_BASELINE_IMAGE=osodevops/kafka-backup:v0.15.7 \
+./benchmarks/run_benchmarks.sh pipelined-flush standard
+```
+
 **Scenarios:**
 - **Throughput** - Maximum backup/restore speed
+- **Pipelined Flush** - v0.15.8 segment compression/upload pipelining
 - **Compression** - Algorithm comparison (zstd, lz4, none)
 - **Latency** - Checkpoint and segment write latencies
 - **Large Messages** - 100KB, 1MB, 5MB message handling
@@ -264,6 +274,7 @@ Comprehensive performance testing suite for kafka-backup.
 **What You'll Learn:**
 - Performance characteristics
 - Tuning parameters
+- v0.15.8 pipelined segment flush performance impact
 - Compression tradeoffs
 - Scaling behavior
 
@@ -274,6 +285,47 @@ Comprehensive performance testing suite for kafka-backup.
 | Restore throughput | >40 MB/s |
 | Checkpoint p99 latency | <100ms |
 | Compression ratio (zstd) | >3x |
+
+---
+
+## Kubernetes Operator Demos
+
+### 12. kafka-backup-operator Retention Behavior
+
+**Path:** `operators/kafka-backup-operator-retention/`
+**Difficulty:** Beginner
+
+Validates the current `kafka-backup-operator` CRD and demo manifests: backup data retention is external today, and `KafkaBackup` does not support a `spec.retention` block.
+
+**Run:**
+```bash
+./operators/kafka-backup-operator-retention/demo.sh
+```
+
+**What You'll Learn:**
+- Current backup data retention behavior
+- Why object-store lifecycle or an external cleanup job owns pruning
+- How to avoid confusing `KafkaBackupValidation.retentionDays` with backup data retention
+
+---
+
+### 13. Strimzi Backup Operator Safety Controls
+
+**Path:** `operators/strimzi-backup-operator-safety/`
+**Difficulty:** Intermediate
+
+Validates recent `strimzi-backup-operator` CRD fields and demo manifests for backup/restore job safety controls.
+
+**Run:**
+```bash
+./operators/strimzi-backup-operator-safety/demo.sh
+```
+
+**What You'll Learn:**
+- `hostAliases` and per-CR service account job customization
+- Schedule suspension propagation to CronJobs
+- Selective restore with topic include/exclude filters
+- Restore retry safety with `backoffLimit: 0`
 
 ---
 

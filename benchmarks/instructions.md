@@ -63,6 +63,33 @@ Measures maximum backup and restore speed.
 - Backup: 50-150 MB/s (depends on storage backend)
 - Restore: 40-120 MB/s
 
+### Pipelined Flush (`scenarios/pipelined-flush/`)
+
+Demonstrates the v0.15.8 optimization that overlaps sealed segment compression/upload with continued Kafka fetching.
+
+**What it tests:**
+- Backup wall-clock time with multiple zstd-compressed segments
+- Segment count and records processed
+- Optional current-vs-baseline image comparison
+
+**Expected results:**
+- v0.15.8 should reduce wall time when segment compression/upload is a visible part of the run
+- Local results depend on Docker CPU, disk, and MinIO throughput
+
+Run a single-image smoke test:
+
+```bash
+KAFKA_BACKUP_IMAGE=kafka-backup:local-v0.15.8 ./benchmarks/run_benchmarks.sh pipelined-flush quick
+```
+
+Compare two release tags:
+
+```bash
+KAFKA_BACKUP_IMAGE=osodevops/kafka-backup:v0.15.8 \
+KAFKA_BACKUP_BASELINE_IMAGE=osodevops/kafka-backup:v0.15.7 \
+./benchmarks/run_benchmarks.sh pipelined-flush standard
+```
+
 ### Compression (`scenarios/compression/`)
 
 Compares compression algorithms: zstd, lz4, none.
@@ -183,6 +210,7 @@ echo '{"scenarios": {}}' > $BENCHMARK_RESULTS_FILE
 
 # Run specific scenario
 ./benchmarks/scenarios/throughput/run.sh
+./benchmarks/scenarios/pipelined-flush/run.sh
 ./benchmarks/scenarios/compression/run.sh
 ./benchmarks/scenarios/latency/run.sh
 ```
@@ -198,6 +226,9 @@ echo '{"scenarios": {}}' > $BENCHMARK_RESULTS_FILE
 | `BENCHMARK_MESSAGE_COUNT` | 10000 | Number of test messages |
 | `BENCHMARK_ITERATIONS` | 1 | Repeat count for averaging |
 | `BENCHMARK_RESULTS_FILE` | auto-generated | Output file path |
+| `KAFKA_BACKUP_IMAGE` | `osodevops/kafka-backup:latest` | Image used for the current run |
+| `KAFKA_BACKUP_BASELINE_IMAGE` | unset | Optional image for pipelined flush comparison |
+| `PIPELINED_SEGMENT_MAX_BYTES` | `8388608` | Segment size used by the pipelined flush scenario |
 
 ### Custom Test Data
 
@@ -251,7 +282,11 @@ docker compose up -d
 
 1. Ensure Docker has sufficient resources (4GB+ RAM)
 2. Check for competing workloads on the host
-3. Verify MinIO is healthy: `docker compose exec minio mc admin info local`
+3. Verify MinIO is healthy:
+   ```bash
+   docker compose run --rm --entrypoint /bin/sh minio-setup -c \
+     'mc alias set local http://minio:9000 minioadmin minioadmin && mc admin info local'
+   ```
 
 ### Missing results
 
@@ -267,7 +302,8 @@ ls -la benchmarks/results/
 
 ```bash
 # Clean up old backups
-docker compose exec minio mc rm --recursive --force local/kafka-backups/
+docker compose run --rm --entrypoint /bin/sh minio-setup -c \
+  'mc alias set local http://minio:9000 minioadmin minioadmin && mc rm --recursive --force local/kafka-backups/'
 
 # Clean up Kafka data
 docker compose down -v

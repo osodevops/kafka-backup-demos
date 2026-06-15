@@ -22,6 +22,14 @@ echo ""
 
 cd "$PROJECT_ROOT"
 
+minio_rm_prefix() {
+    local prefix="$1"
+    docker compose run --rm --entrypoint /bin/sh minio-setup -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin >/dev/null
+        mc rm --recursive --force local/kafka-backups/${prefix}/ >/dev/null 2>&1 || true
+    " >/dev/null
+}
+
 # Initialize results
 BACKUP_TIMES=()
 RESTORE_TIMES=()
@@ -30,7 +38,7 @@ for iter in $(seq 1 $ITERATIONS); do
     echo "Iteration $iter of $ITERATIONS"
 
     # Clean up previous backup
-    docker compose exec minio mc rm --recursive --force local/kafka-backups/benchmark-throughput/ 2>/dev/null || true
+    minio_rm_prefix "benchmark-throughput"
 
     # Backup
     echo "  Running backup..."

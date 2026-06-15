@@ -141,6 +141,7 @@ storage:
   prefix: report-demo
   endpoint: http://minio:9000
   path_style: true
+  allow_http: true
   access_key_id: minioadmin
   secret_access_key: minioadmin
 

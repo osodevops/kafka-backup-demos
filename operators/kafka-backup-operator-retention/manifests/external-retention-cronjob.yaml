@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: kafka-backup-pvc-retention
+  namespace: kafka-backup-demo
+spec:
+  schedule: "15 3 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: cleanup
+              image: alpine:3.20
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  find /backups/demo/orders -type f -mtime +30 -delete
+                  find /backups/demo/orders -type d -empty -delete
+              volumeMounts:
+                - name: backup-data
+                  mountPath: /backups
+          volumes:
+            - name: backup-data
+              persistentVolumeClaim:
+                claimName: kafka-backup-data
