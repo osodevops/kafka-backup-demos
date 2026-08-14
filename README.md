@@ -81,6 +81,7 @@ The `docker-compose.yml` provides:
 |------|------|---------|------------|
 | [Kafka Streams PITR](java-streams/pitr-restore/instructions.md) | `java-streams/pitr-restore/` | Streams app point-in-time recovery | Intermediate |
 | [Offset Reset Verify](java-streams/offset-reset-verify/instructions.md) | `java-streams/offset-reset-verify/` | Bulk offset reset correctness | Intermediate |
+| [Stateful Join Restore](java-streams/stateful-join-restore/instructions.md) | `java-streams/stateful-join-restore/` | Stateful Streams DR: rebuild, changelog fast-restore, hot-backup pitfall | Advanced |
 
 ### Spring Boot Demos
 
@@ -133,6 +134,7 @@ docker compose --profile tools exec kafka-cli kafka-console-consumer.sh --bootst
 9. **Pipelined Segment Flush** - v0.15.8 backup performance improvement for compressed segment uploads
 10. **Operator Safety Controls** - Kubernetes CRD validation for recent operator behavior fixes
 11. **Three-Phase Restore** - Solving the offset space discontinuity problem
+12. **Stateful Kafka Streams Restore** - Rebuild-from-inputs and changelog fast-restore for joined/aggregating topologies, plus the hot-backup consistency pitfall
 
 ## Cleanup
 
@@ -170,6 +172,7 @@ Results are saved to `test-results/` as markdown reports.
 ## Documentation
 
 - [Demo Index](docs/demo-index.md) - Complete demo reference
+- [Kafka Streams Restore Runbook](docs/kstreams-restore-runbook.md) - Capability matrix and DR runbooks for stateful Streams apps
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 - [Known Issues](docs/known-issues.md) - Current limitations
 

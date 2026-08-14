@@ -1,0 +1,38 @@
+# Stateful Streams Demo - Input Topics Backup (Strategy A: rebuild from inputs)
+# Used by: java-streams/stateful-join-restore scenario-1-rebuild.sh
+#
+# Quiesced snapshot of the two joined input topics only. The Streams app's
+# state is derived data - after restore it is rebuilt by reprocessing these
+# inputs (kafka-streams-application-reset + clean state dir).
+
+mode: backup
+backup_id: "streams-join-inputs"
+
+source:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - orders
+      - payments
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: streams-join-demo/inputs
+  endpoint: http://minio:9000
+  path_style: true
+  allow_http: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+backup:
+  compression: zstd
+  compression_level: 3
+  include_offset_headers: true
+
+  # Snapshot mode: capture HWMs at start, exit when caught up
+  stop_at_current_offsets: true
+
+  max_concurrent_partitions: 3

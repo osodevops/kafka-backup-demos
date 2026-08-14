@@ -1,0 +1,43 @@
+# Stateful Streams Demo - Full Restore (Strategy B: changelog fast-restore)
+# Used by: java-streams/stateful-join-restore scenario-2-changelog-restore.sh
+#
+# Restores the complete topic set. Committed consumer offsets are re-anchored
+# separately with the offset-rollback CLI (snapshot taken at backup time,
+# rollback executed after restore) - see scenario-2-changelog-restore.sh.
+#
+# The app is then restarted with a CLEAN state directory and NO application
+# reset: state stores rebuild from the restored changelogs, inputs are not
+# reprocessed.
+
+mode: restore
+backup_id: "streams-join-full"
+
+target:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - orders
+      - payments
+      - stateful-join-demo-order-payment-join-this-join-store-changelog
+      - stateful-join-demo-order-payment-join-other-join-store-changelog
+      - stateful-join-demo-customer-revenue-store-changelog
+      - stateful-join-demo-customer-revenue-repartition
+      - orders_with_payments
+      - customer_revenue
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: streams-join-demo/full
+  endpoint: http://minio:9000
+  path_style: true
+  allow_http: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+restore:
+  dry_run: false
+  include_original_offset_header: true
+  max_concurrent_partitions: 3

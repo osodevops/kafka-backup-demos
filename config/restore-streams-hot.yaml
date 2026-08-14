@@ -1,0 +1,40 @@
+# Stateful Streams Demo - HOT Backup Restore - NEGATIVE DEMO
+# Used by: java-streams/stateful-join-restore scenario-3-hot-backup-negative.sh
+#
+# Restores the hot (non-quiesced) backup the same way scenario 2 restores the
+# quiesced one. The restore itself succeeds - the resulting STATE is what's
+# inconsistent, which the scenario script proves by diffing against the true
+# final state.
+
+mode: restore
+backup_id: "streams-join-hot"
+
+target:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - orders
+      - payments
+      - stateful-join-demo-order-payment-join-this-join-store-changelog
+      - stateful-join-demo-order-payment-join-other-join-store-changelog
+      - stateful-join-demo-customer-revenue-store-changelog
+      - stateful-join-demo-customer-revenue-repartition
+      - orders_with_payments
+      - customer_revenue
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: streams-join-demo/hot
+  endpoint: http://minio:9000
+  path_style: true
+  allow_http: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+restore:
+  dry_run: false
+  include_original_offset_header: true
+  max_concurrent_partitions: 3
