@@ -19,6 +19,7 @@ Complete reference for all kafka-backup demos.
 | 11 | [Benchmarks](#11-performance-benchmarks) | `benchmarks/` | Bash/Python | Performance testing | Intermediate |
 | 12 | [kafka-backup-operator Retention Behavior](#12-kafka-backup-operator-retention-behavior) | `operators/kafka-backup-operator-retention/` | Bash/Python | Operator retention model | Beginner |
 | 13 | [Strimzi Backup Operator Safety Controls](#13-strimzi-backup-operator-safety-controls) | `operators/strimzi-backup-operator-safety/` | Bash/Python | CRD safety controls | Intermediate |
+| 14 | [Stateful Join Restore](#14-stateful-join-restore) | `java-streams/stateful-join-restore/` | Java/Bash | Stateful Streams DR strategies | Advanced |
 
 ---
 
@@ -168,6 +169,34 @@ java -jar target/offset-reset-verify-demo.jar localhost:9092 50
 - Consumer offset tracking
 - Verifying exact re-read count
 - Offset reset validation
+
+---
+
+### 14. Stateful Join Restore
+
+**Path:** `java-streams/stateful-join-restore/`
+**Difficulty:** Advanced
+
+Backup and restore of a stateful Streams app with two joined input topics, a
+windowed join, a repartitioned aggregation and RocksDB state stores. Three
+self-verifying scenarios: rebuild-from-inputs, changelog fast-restore, and a
+negative demo proving why non-quiesced backups of stateful pipelines fail.
+Companion doc: [Kafka Streams Restore Runbook](kstreams-restore-runbook.md).
+
+**Build & Run:**
+```bash
+mvn clean package
+./scenario-1-rebuild.sh              # Strategy A: restore inputs + app reset + reprocess
+./scenario-2-changelog-restore.sh    # Strategy B: changelogs + offsets, no reprocessing
+./scenario-3-hot-backup-negative.sh  # why hot backups of stateful apps are inconsistent
+```
+
+**What You'll Learn:**
+- Backing up Streams internal topics (changelogs, repartition)
+- kafka-streams-application-reset workflow
+- Record timestamp preservation and windowed join replay determinism
+- offset-rollback snapshot/rollback for committed group offsets
+- The quiesce requirement for consistent multi-topic recovery points
 
 ---
 
@@ -364,7 +393,8 @@ Validates recent `strimzi-backup-operator` CRD fields and demo manifests for bac
 | Large Messages | ✓ | - | - | - | ✓ |
 | Compression | ✓ | - | - | - | ✓ |
 | Streams Integration | - | ✓ | ✓ | - | - |
-| REST API | - | - | ✓ | - | - |
+| Stateful Streams DR (changelog restore) | - | ✓ | - | - | - |
+| REST API | - | ✓ | ✓ | - | - |
 | Performance Metrics | - | - | - | - | ✓ |
 
 ---
