@@ -1,0 +1,50 @@
+# Stateful Streams Demo - Full Backup (Strategy B: changelog fast-restore)
+# Used by: java-streams/stateful-join-restore scenario-2-changelog-restore.sh
+#
+# Quiesced snapshot of the COMPLETE topic set for the Streams application:
+# inputs, all four internal topics, and both output topics - taken in one
+# pass while the app is stopped, so everything represents the same moment.
+#
+# NOTE: topic include lists are literal names (no wildcards). The list below
+# must match `kafka-topics.sh --list | grep '^stateful-join-demo-'`. The
+# scenario scripts assert this before backing up. Store names are pinned in
+# the app (StreamJoined.withStoreName / Materialized.as / Grouped.as) so these
+# names are stable.
+
+mode: backup
+backup_id: "streams-join-full"
+
+source:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - orders
+      - payments
+      - stateful-join-demo-order-payment-join-this-join-store-changelog
+      - stateful-join-demo-order-payment-join-other-join-store-changelog
+      - stateful-join-demo-customer-revenue-store-changelog
+      - stateful-join-demo-customer-revenue-repartition
+      - orders_with_payments
+      - customer_revenue
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: streams-join-demo/full
+  endpoint: http://minio:9000
+  path_style: true
+  allow_http: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+backup:
+  compression: zstd
+  compression_level: 3
+  include_offset_headers: true
+
+  # Snapshot mode: capture HWMs at start, exit when caught up
+  stop_at_current_offsets: true
+
+  max_concurrent_partitions: 3

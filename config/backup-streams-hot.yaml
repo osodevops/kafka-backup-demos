@@ -1,0 +1,44 @@
+# Stateful Streams Demo - HOT (Non-Quiesced) Backup - NEGATIVE DEMO
+# Used by: java-streams/stateful-join-restore scenario-3-hot-backup-negative.sh
+#
+# Identical topic set to backup-streams-full.yaml, but taken while the app and
+# producers are RUNNING. Snapshot mode (stop_at_current_offsets) bounds each
+# partition at its high watermark AT BACKUP START - it does NOT make the cut
+# consistent ACROSS topics: orders, payments, changelogs and committed offsets
+# are each captured at different logical moments. That inconsistency is the
+# point of the demo: stateful Streams DR backups must be taken quiesced.
+
+mode: backup
+backup_id: "streams-join-hot"
+
+source:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - orders
+      - payments
+      - stateful-join-demo-order-payment-join-this-join-store-changelog
+      - stateful-join-demo-order-payment-join-other-join-store-changelog
+      - stateful-join-demo-customer-revenue-store-changelog
+      - stateful-join-demo-customer-revenue-repartition
+      - orders_with_payments
+      - customer_revenue
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: streams-join-demo/hot
+  endpoint: http://minio:9000
+  path_style: true
+  allow_http: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+backup:
+  compression: zstd
+  compression_level: 3
+  include_offset_headers: true
+  stop_at_current_offsets: true
+  max_concurrent_partitions: 3

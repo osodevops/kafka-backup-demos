@@ -1,0 +1,35 @@
+# Stateful Streams Demo - Input Topics Restore (Strategy A: rebuild from inputs)
+# Used by: java-streams/stateful-join-restore scenario-1-rebuild.sh
+#
+# Restores only the input topics. Consumer group offsets are deliberately NOT
+# restored (consumer_group_strategy: skip) because Strategy A resets the
+# Streams application with kafka-streams-application-reset, which rewinds the
+# group to earliest so state is recomputed from the restored inputs.
+
+mode: restore
+backup_id: "streams-join-inputs"
+
+target:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - orders
+      - payments
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  region: us-east-1
+  prefix: streams-join-demo/inputs
+  endpoint: http://minio:9000
+  path_style: true
+  allow_http: true
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+
+restore:
+  dry_run: false
+  include_original_offset_header: true
+  consumer_group_strategy: skip
+  max_concurrent_partitions: 3
