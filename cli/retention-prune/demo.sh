@@ -52,22 +52,22 @@ docker compose --profile tools run --rm kafka-cli bash -c '
 print_success "Produced 30 'new' records"
 
 print_step 5 "Prune PLAN (dry run — nothing deleted)..."
-kb prune --path s3://kafka-backups --backup-id retention-demo --older-than 30s
+kb prune --config /config/backup-retention.yaml --older-than 30s
 print_info "Note the plan lists only a contiguous oldest-first prefix per partition."
 print_success "Plan reviewed"
 
 print_step 6 "Prune --execute (manifest rewritten first, then objects deleted)..."
-kb prune --path s3://kafka-backups --backup-id retention-demo --older-than 30s --execute
+kb prune --config /config/backup-retention.yaml --older-than 30s --execute
 print_success "Aged segments pruned"
 
 print_step 7 "The archive is still VALID — pruned ranges are recorded, not data loss..."
-kb validate --path s3://kafka-backups --backup-id retention-demo
-kb describe --path s3://kafka-backups --backup-id retention-demo | grep -E "PRUNED|Pruned|Total Segments" || true
+kb validate --path "s3://kafka-backups?endpoint=http://minio:9000&path_style=true" --backup-id retention-demo
+kb describe --path "s3://kafka-backups?endpoint=http://minio:9000&path_style=true" --backup-id retention-demo | grep -E "PRUNED|Pruned|Total Segments" || true
 print_success "validate passes and describe shows the PRUNED ranges"
 
 print_step 8 "Second incremental backup — pruned segments are NOT resurrected..."
 kb backup --config /config/backup-retention.yaml
-kb describe --path s3://kafka-backups --backup-id retention-demo | grep -E "PRUNED|Total Segments" || true
+kb describe --path "s3://kafka-backups?endpoint=http://minio:9000&path_style=true" --backup-id retention-demo | grep -E "PRUNED|Total Segments" || true
 print_success "Incremental resume works; pruned ranges survive the merge"
 
 print_step 9 "Restore the surviving window to orders-restored..."
