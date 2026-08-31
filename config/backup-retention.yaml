@@ -1,0 +1,33 @@
+# Incremental backup with built-in retention (kafka-backup 0.21+).
+# Stable backup_id + offset_storage = an incremental set; retention prunes
+# aged segments at the end of every run. Never use bucket lifecycle rules on
+# a set like this — see the storage guide.
+mode: backup
+backup_id: "retention-demo"
+
+source:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - orders
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  endpoint: http://minio:9000
+  path_style: true
+  allow_http: true
+  access_key: minioadmin
+  secret_key: minioadmin
+
+backup:
+  compression: zstd
+  segment_max_records: 20        # tiny segments so the demo prunes something
+  stop_at_current_offsets: true
+  retention:
+    max_age: 30s                 # demo-sized; production would use e.g. 30d
+    keep_segments: 1
+
+offset_storage:
+  db_path: /tmp/retention-demo-offsets.db

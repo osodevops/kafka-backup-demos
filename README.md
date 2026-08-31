@@ -70,6 +70,7 @@ The `docker-compose.yml` provides:
 | [Snapshot Backup](cli/snapshot-backup/instructions.md) | `cli/snapshot-backup/` | Consistent point-in-time snapshots (stop_at_current_offsets) | Beginner |
 | [Validation & Evidence](cli/validation-evidence/instructions.md) | `cli/validation-evidence/` | Deep integrity checks & compliance evidence | Intermediate |
 | [Continuous Incremental](cli/continuous-incremental/instructions.md) | `cli/continuous-incremental/` | Resumable incremental backups with offset tracking | Intermediate |
+| [Retention & Prune](cli/retention-prune/instructions.md) | `cli/retention-prune/` | Safe retention for incremental sets (`prune`, `backup.retention`) — kafka-backup 0.21+ | Intermediate |
 | [Large Messages](cli/large-messages/instructions.md) | `cli/large-messages/` | Handling large payloads with compression | Intermediate |
 | [Offset Mapping Report](cli/offset-report/instructions.md) | `cli/offset-report/` | JSON offset mapping & analysis | Intermediate |
 | [Consumer Lag Monitoring](cli/klag-monitoring/instructions.md) | `cli/klag-monitoring/` | Klag + Prometheus lag monitoring | Intermediate |
