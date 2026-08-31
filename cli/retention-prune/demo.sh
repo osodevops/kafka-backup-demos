@@ -28,6 +28,10 @@ fi
 print_success "Docker services are running"
 
 print_step 2 "Preparing the orders topic with two batches of data..."
+# Idempotent: wipe any previous demo backup set so counts are predictable.
+docker compose run --rm --entrypoint /bin/sh minio-setup -c '
+    mc alias set local http://minio:9000 minioadmin minioadmin >/dev/null &&
+    mc rm --recursive --force local/kafka-backups/retention-demo 2>/dev/null || true' >/dev/null 2>&1 || true
 docker compose --profile tools run --rm kafka-cli bash -c '
     kafka-topics.sh --bootstrap-server kafka-broker-1:9092 --delete --topic orders 2>/dev/null || true
     sleep 2
