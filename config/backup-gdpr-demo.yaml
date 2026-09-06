@@ -1,0 +1,25 @@
+# GDPR erasure demo — one-shot backup of a compacted "customers" topic and a
+# plain "orders" topic, taken BEFORE an erasure request arrives.
+mode: backup
+backup_id: "gdpr-demo"
+
+source:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - customers
+      - orders
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  endpoint: http://minio:9000
+  path_style: true
+  allow_http: true
+  access_key: minioadmin
+  secret_key: minioadmin
+
+backup:
+  compression: zstd
+  stop_at_current_offsets: true

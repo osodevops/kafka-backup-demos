@@ -1,0 +1,36 @@
+# GDPR erasure demo — restore the compacted "customers" topic with the erasure
+# list re-applied: every record whose key is on the list is produced as a
+# TOMBSTONE (same key, null value). On a compacted target this also retires any
+# earlier copy of the key once compaction runs.
+mode: restore
+backup_id: "gdpr-demo"
+
+target:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - customers
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  endpoint: http://minio:9000
+  path_style: true
+  allow_http: true
+  access_key: minioadmin
+  secret_key: minioadmin
+
+restore:
+  create_topics: true
+  topic_mapping:
+    customers: customers-restored
+
+# Enterprise feature — licence flag `erasure` (the 14-day auto-trial includes it).
+enterprise:
+  erasure:
+    suppression:
+      keys_file: /data/gdpr/suppressed-keys.txt   # ./data is mounted at /data
+      topics: ["customers"]                        # source topic names (globs allowed)
+      match: exact                                 # exact | prefix | regex
+      on_match: tombstone                          # tombstone | drop
