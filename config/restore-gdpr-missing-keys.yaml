@@ -1,0 +1,34 @@
+# GDPR erasure demo — fail-loud path: the erasure list is configured but the
+# file does not exist. The restore must be REFUSED before any partition is
+# touched (an erasure list that silently failed to load would reinstate the
+# erased data).
+mode: restore
+backup_id: "gdpr-demo"
+
+target:
+  bootstrap_servers:
+    - kafka-broker-1:9092
+  topics:
+    include:
+      - customers
+
+storage:
+  backend: s3
+  bucket: kafka-backups
+  endpoint: http://minio:9000
+  path_style: true
+  allow_http: true
+  access_key: minioadmin
+  secret_key: minioadmin
+
+restore:
+  create_topics: true
+  topic_mapping:
+    customers: customers-failloud
+
+enterprise:
+  erasure:
+    suppression:
+      keys_file: /data/gdpr/does-not-exist.txt
+      topics: ["customers"]
+      on_match: tombstone

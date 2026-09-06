@@ -71,6 +71,7 @@ The `docker-compose.yml` provides:
 | [Validation & Evidence](cli/validation-evidence/instructions.md) | `cli/validation-evidence/` | Deep integrity checks & compliance evidence | Intermediate |
 | [Continuous Incremental](cli/continuous-incremental/instructions.md) | `cli/continuous-incremental/` | Resumable incremental backups with offset tracking | Intermediate |
 | [Retention & Prune](cli/retention-prune/instructions.md) | `cli/retention-prune/` | Safe retention for incremental sets (`prune`, `backup.retention`) — kafka-backup 0.21+ | Intermediate |
+| [GDPR Right-to-Erasure (Enterprise)](cli/gdpr-erasure/instructions.md) | `cli/gdpr-erasure/` | Erasure re-applied on restore: tombstone/drop by key, audit digest, fail-loud, licence gate — Enterprise 0.4+ | Intermediate |
 | [Large Messages](cli/large-messages/instructions.md) | `cli/large-messages/` | Handling large payloads with compression | Intermediate |
 | [Offset Mapping Report](cli/offset-report/instructions.md) | `cli/offset-report/` | JSON offset mapping & analysis | Intermediate |
 | [Consumer Lag Monitoring](cli/klag-monitoring/instructions.md) | `cli/klag-monitoring/` | Klag + Prometheus lag monitoring | Intermediate |
