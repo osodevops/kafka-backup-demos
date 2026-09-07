@@ -253,6 +253,14 @@ restore:
 - `time_window_end`: Include records before this timestamp
 - Precision: Milliseconds
 
+> **Which timestamp?** The window applies to the record timestamp stored by
+> Kafka — the producer's clock (`CreateTime`, the default) or the broker's
+> (`LogAppendTime`), per the topic's `message.timestamp.type`. After a replay or
+> mirror that is the (re)publish time, not the business event time in the
+> payload. Filtering on a payload field is not supported; restore the widest
+> window that covers the incident and let idempotent consumers filter by event
+> id or event time.
+
 ### Offset Reset Strategies
 | Strategy | Description |
 |----------|-------------|
