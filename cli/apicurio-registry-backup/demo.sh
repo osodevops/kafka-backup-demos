@@ -46,18 +46,18 @@ print_success "Apicurio Registry is healthy"
 # ── Step 2: Check registry data ─────────────────────────
 print_step 2 "Check Apicurio Registry has test data..."
 
-GROUPS=$(curl -sf http://localhost:8085/apis/registry/v3/groups)
-GROUP_COUNT=$(echo "$GROUPS" | python3 -c "import sys,json; print(json.load(sys.stdin)['count'])" 2>/dev/null || echo "0")
+REGISTRY_GROUPS=$(curl -sf http://localhost:8085/apis/registry/v3/groups)
+GROUP_COUNT=$(echo "$REGISTRY_GROUPS" | python3 -c "import sys,json; print(json.load(sys.stdin)['count'])" 2>/dev/null || echo "0")
 
 if [ "$GROUP_COUNT" -lt 2 ]; then
     print_info "Waiting for apicurio-setup to register test data..."
     sleep 20
-    GROUPS=$(curl -sf http://localhost:8085/apis/registry/v3/groups)
-    GROUP_COUNT=$(echo "$GROUPS" | python3 -c "import sys,json; print(json.load(sys.stdin)['count'])" 2>/dev/null || echo "0")
+    REGISTRY_GROUPS=$(curl -sf http://localhost:8085/apis/registry/v3/groups)
+    GROUP_COUNT=$(echo "$REGISTRY_GROUPS" | python3 -c "import sys,json; print(json.load(sys.stdin)['count'])" 2>/dev/null || echo "0")
 fi
 
 print_info "Groups in registry:"
-echo "$GROUPS" | python3 -c "
+echo "$REGISTRY_GROUPS" | python3 -c "
 import sys,json
 data = json.load(sys.stdin)
 for g in data.get('groups', []):
@@ -82,21 +82,18 @@ print_success "Apicurio Registry backup complete!"
 # ── Step 5: Verify backup in MinIO ──────────────────────
 print_step 5 "Verify backup files in MinIO..."
 
-docker run --rm --network kafka-net minio/mc sh -c "
-    mc alias set local http://minio:9000 minioadmin minioadmin > /dev/null 2>&1
-    echo 'Backup contents:'
-    mc ls local/kafka-backups/apicurio-demo/ --recursive 2>/dev/null | head -20
-"
+echo "Backup contents:"
+docker compose --profile tools run --rm -T minio-mc \
+    ls --recursive local/kafka-backups/apicurio-demo/ 2>/dev/null | head -20
 
 print_success "Backup files verified in MinIO"
 
 # ── Step 6: Check the export ZIP ────────────────────────
 print_step 6 "Verify export ZIP was captured..."
 
-ZIP_SIZE=$(docker run --rm --network kafka-net minio/mc sh -c "
-    mc alias set local http://minio:9000 minioadmin minioadmin > /dev/null 2>&1
-    mc stat local/kafka-backups/apicurio-demo/apicurio-demo-backup/apicurio-registry/_export.zip 2>/dev/null | grep Size || echo 'Not found'
-")
+ZIP_SIZE=$(docker compose --profile tools run --rm -T minio-mc \
+    stat local/kafka-backups/apicurio-demo/apicurio-demo-backup/apicurio-registry/_export.zip 2>/dev/null \
+    | grep Size || echo 'Not found')
 print_info "Export ZIP: $ZIP_SIZE"
 print_success "Export ZIP captured (can be re-imported for disaster recovery)"
 
