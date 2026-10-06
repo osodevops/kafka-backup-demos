@@ -137,6 +137,27 @@ storage:
   path_style: true  # Required for MinIO
 ```
 
+### `list` / `describe` with `--path s3://...` fails with `InvalidAccessKeyId`
+
+**Symptom:** `--config` backups succeed, but subcommands that take `--path s3://...`
+fail with `403 Forbidden ... InvalidAccessKeyId` and the URL is `s3.us-east-1.amazonaws.com`
+
+**Cause:** `--path` has no YAML to read `endpoint:` from, so the request goes to real
+AWS S3. The CLI reads the endpoint from the standard `AWS_*` environment variables
+(`S3_ENDPOINT` is not read).
+
+**Solutions:**
+```bash
+# Set the standard AWS_* variables (this repo's docker-compose.yml already
+# does this for the kafka-backup service)
+export AWS_ENDPOINT_URL=http://localhost:9000 AWS_ALLOW_HTTP=true
+kafka-backup list --path s3://kafka-backups/demo
+
+# Or put the endpoint in the URL (kafka-backup 0.21+; http:// implies allow_http)
+docker compose --profile tools run --rm kafka-backup \
+    list --path 's3://kafka-backups/demo?endpoint=http://minio:9000'
+```
+
 ### Restore produces no messages
 
 **Symptom:** Restore completes but topic is empty

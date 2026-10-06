@@ -214,7 +214,7 @@ echo "Checking for corrupted messages (should be 0):"
 CORRUPT_COUNT=$(docker compose --profile tools run --rm kafka-cli bash -c '
     kafka-console-consumer.sh --bootstrap-server kafka-broker-1:9092 \
         --topic payments --from-beginning \
-        --timeout-ms 10000 2>/dev/null | grep -c "CORRUPTED" || echo "0"
+        --timeout-ms 10000 2>/dev/null | grep -c "CORRUPTED" || true
 ')
 echo "Found $CORRUPT_COUNT corrupted messages"
 echo ""
@@ -232,7 +232,7 @@ else
             --path s3://kafka-backups/pitr-demo \
             --snapshot-id "$SNAPSHOT_ID" \
             --bootstrap-servers kafka-broker-1:9092 \
-            --verify true
+            --verify
         print_success "Rolled back to snapshot: $SNAPSHOT_ID"
     fi
 fi

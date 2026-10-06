@@ -75,18 +75,9 @@ print_success "Schema Registry backup complete!"
 # ── Step 5: Verify backup in MinIO ──────────────────────
 print_step 5 "Verify backup files in MinIO..."
 
-docker compose --profile tools run --rm minio-mc bash -c "
-    mc alias set local http://minio:9000 minioadmin minioadmin > /dev/null 2>&1
-    echo 'Backup contents:'
-    mc ls local/kafka-backups/sr-demo/ --recursive
-" 2>/dev/null || {
-    # Fallback: use mc from minio-setup
-    print_info "Listing backup via MinIO API..."
-    docker run --rm --network kafka-net minio/mc sh -c "
-        mc alias set local http://minio:9000 minioadmin minioadmin > /dev/null 2>&1
-        mc ls local/kafka-backups/sr-demo/ --recursive
-    "
-}
+echo "Backup contents:"
+docker compose --profile tools run --rm -T minio-mc \
+    ls --recursive local/kafka-backups/sr-demo/ 2>/dev/null
 
 print_success "Backup files verified in MinIO"
 

@@ -107,15 +107,13 @@ print_success "Full enterprise backup complete!"
 # ── Step 6: Verify everything ───────────────────────────
 print_step 6 "Verify backup contents in MinIO..."
 
-docker run --rm --network kafka-net minio/mc sh -c "
-    mc alias set local http://minio:9000 minioadmin minioadmin > /dev/null 2>&1
-    echo 'Complete backup layout:'
-    mc ls local/kafka-backups/enterprise-full/ --recursive 2>/dev/null | head -30
-    echo '...'
-    echo ''
-    TOTAL=\$(mc ls local/kafka-backups/enterprise-full/ --recursive 2>/dev/null | wc -l)
-    echo \"Total files: \$TOTAL\"
-"
+LAYOUT=$(docker compose --profile tools run --rm -T minio-mc \
+    ls --recursive local/kafka-backups/enterprise-full/ 2>/dev/null)
+echo "Complete backup layout:"
+echo "$LAYOUT" | head -30
+echo "..."
+echo ""
+echo "Total files: $(echo "$LAYOUT" | grep -c .)"
 
 print_success "All backup files verified"
 

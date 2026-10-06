@@ -79,8 +79,14 @@ services:
       echo "All demo topics created successfully"'
 
   # MinIO (S3-compatible storage)
+  # minio/minio and minio/mc were deleted from Docker Hub (Sept 2026) and quay.io
+  # no longer allows anonymous pulls, so use Chainguard's free MinIO builds.
+  # These are distroless (no shell) - invoke mc directly, never via sh -c.
   minio:
-    image: minio/minio:latest
+    image: ${MINIO_IMAGE:-cgr.dev/chainguard/minio:latest}
+    # Chainguard runs as uid 65532, but minio-data volumes created by the old
+    # minio/minio image are root-owned and MinIO then fails to start.
+    user: "0:0"
     hostname: minio
     networks:
       - kafka-net
@@ -94,21 +100,30 @@ services:
     volumes:
       - minio-data:/data
 
-  # MinIO bucket setup
+  # MinIO bucket setup (retries via restart policy until MinIO is up)
   minio-setup:
-    image: minio/mc:latest
+    image: ${MINIO_MC_IMAGE:-cgr.dev/chainguard/minio-client:latest}
     networks:
       - kafka-net
     depends_on:
       - minio
     restart: on-failure
-    entrypoint: >
-      /bin/sh -c "
-      sleep 5;
-      mc alias set local http://minio:9000 minioadmin minioadmin;
-      mc mb local/kafka-backups --ignore-existing;
-      echo 'Bucket kafka-backups created';
-      "
+    environment:
+      MC_HOST_local: http://minioadmin:minioadmin@minio:9000
+    command: ["mb", "--ignore-existing", "local/kafka-backups"]
+
+  # MinIO client for inspecting backups, e.g.
+  #   docker compose --profile tools run --rm minio-mc ls --recursive local/kafka-backups/
+  minio-mc:
+    image: ${MINIO_MC_IMAGE:-cgr.dev/chainguard/minio-client:latest}
+    networks:
+      - kafka-net
+    depends_on:
+      - minio
+    environment:
+      MC_HOST_local: http://minioadmin:minioadmin@minio:9000
+    profiles:
+      - tools
 
   # Kafka CLI tools (for running kafka-console-producer, kafka-console-consumer, etc.)
   kafka-cli:
@@ -133,15 +148,21 @@ services:
   # Kafka Backup CLI (OSS) - the backup/restore tool
   kafka-backup:
     image: ${KAFKA_BACKUP_IMAGE:-osodevops/kafka-backup:latest}
+    # Image is published for amd64 only; without this, arm64 hosts fail the
+    # pull and silently keep running whatever stale :latest is cached locally.
+    platform: ${KAFKA_BACKUP_PLATFORM:-linux/amd64}
     networks:
       - kafka-net
     environment:
       KAFKA_BROKERS: kafka-broker-1:9092
-      S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY: minioadmin
-      S3_SECRET_KEY: minioadmin
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
+      # Endpoint for subcommands that take --path s3://... (list, describe,
+      # validate, ...). --config runs read the endpoint from the YAML instead;
+      # without these, --path requests go to real AWS S3 (issue #5).
+      AWS_ENDPOINT_URL: http://minio:9000
+      AWS_ALLOW_HTTP: "true"
+      AWS_REGION: us-east-1
       RUST_LOG: info
     depends_on:
       - kafka-broker-1
@@ -225,6 +246,10 @@ services:
       KAFKA_BROKERS: kafka-broker-1:9092
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
+      # See kafka-backup above: endpoint for --path s3://... subcommands
+      AWS_ENDPOINT_URL: http://minio:9000
+      AWS_ALLOW_HTTP: "true"
+      AWS_REGION: us-east-1
       RUST_LOG: info
     depends_on:
       - kafka-broker-1
@@ -323,7 +348,9 @@ services:
       APICURIO_DATASOURCE_USERNAME: apicurio
       APICURIO_DATASOURCE_PASSWORD: apicurio
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/q/health"]
+      # Public v3 API rather than /q/health, which Apicurio 3.3 moved to the
+      # management port (9000) and renamed
+      test: ["CMD", "curl", "-f", "http://localhost:8080/apis/registry/v3/system/info"]
       interval: 10s
       timeout: 5s
       retries: 10
