@@ -177,7 +177,7 @@ docker compose --profile tools run --rm kafka-cli bash -c '
 docker compose --profile tools run --rm kafka-cli bash -c '
     kafka-console-consumer.sh --bootstrap-server kafka-broker-1:9092 \
         --topic payments --from-beginning \
-        --timeout-ms 10000 2>/dev/null | grep -c "CORRUPTED" || echo "0"
+        --timeout-ms 10000 2>/dev/null | grep -c "CORRUPTED" || true
 '
 
 # Verify consumer group can resume
@@ -199,7 +199,7 @@ docker compose --profile tools run --rm kafka-backup \
     --path s3://kafka-backups/pitr-demo \
     --snapshot-id "$SNAPSHOT_ID" \
     --bootstrap-servers kafka-broker-1:9092 \
-    --verify true
+    --verify
 ```
 
 ## Configuration Details
